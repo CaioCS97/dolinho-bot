@@ -91,7 +91,7 @@ try {
 } catch (error) {
   console.error(error);
 }
-
+//
 client.on("ready", () => {
   console.log(`Logged in as ${client.user?.tag}!`);
 });
