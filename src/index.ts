@@ -5,9 +5,9 @@ import {
   Routes,
   WebhookClient,
 } from "discord.js";
-import fetch from "node-fetch";
-import schedule from "node-schedule";
 import dotenv from "dotenv";
+import cron from "node-cron";
+import fetch from "node-fetch";
 
 dotenv.config();
 
@@ -35,7 +35,7 @@ const getUsdToBrlRate = async () => {
       `https://openexchangerates.org/api/latest.json?app_id=${openExchangeRatesApiKey}&prettyprint=false&show_alternative=false&show_inactive=false`
     );
     const data = (await response.json()) as DollarRates;
-    return data.rates["BRL"];
+    return `R$ ${data.rates["BRL"].toLocaleString("pt-BR")}`;
   } catch (error) {
     console.error;
     throw error;
@@ -44,18 +44,32 @@ const getUsdToBrlRate = async () => {
 
 async function sendRateUpdate() {
   const rate = await getUsdToBrlRate();
-  const message = `Current USD to BRL exchange rate: ${rate}`;
+  const message = `O dolinha tá: ${rate} -  ${new Date().toLocaleString(
+    "pt-BR"
+  )}`;
 
   const webhookClient = new WebhookClient({
     url: webhookUrl,
   });
 
-  webhookClient.send(message);
+  webhookClient.send({
+    embeds: [
+      {
+        title: message,
+        image: {
+          url:
+            Number(rate.at(3)) > 4
+              ? "https://istoedinheiro.com.br/wp-content/uploads/sites/17/2020/03/guedes.jpg"
+              : "https://img.ibxk.com.br/2015/09/22/22172624838652.jpg?ims=328x",
+        },
+      },
+    ],
+  });
   console.log("Rate update sent:", message);
 }
 
 // Schedule rate updates to run every hour
-schedule.scheduleJob("0 8-20/1 * * *", () => {
+cron.schedule("0 0 8-22 * * *", () => {
   sendRateUpdate();
 });
 
@@ -69,7 +83,7 @@ const commands = [
 const rest = new REST({ version: "10" }).setToken(appToken);
 
 try {
-  console.log("Started refreshing application (/) commands.");
+  console.log("Started refreshing application (/) commands.", appId);
 
   await rest.put(Routes.applicationCommands(appId), { body: commands });
 
