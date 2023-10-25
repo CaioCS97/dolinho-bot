@@ -5,8 +5,9 @@ import {
   Routes,
   WebhookClient,
 } from "discord.js";
-import dotenv from "dotenv";
 import cron from "node-cron";
+import dotenv from "dotenv";
+import express from "express";
 import fetch from "node-fetch";
 
 dotenv.config();
@@ -28,6 +29,19 @@ const webhookClientToken = process.env.WEBHOOK_TOKEN;
 const webhookUrl = `https://discord.com/api/webhooks/${webhookClientId}/${webhookClientToken}`;
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+const startHealthCheck = () => {
+  const app = express();
+  const port = process.env.PORT ?? 3000;
+
+  app.get("/health", (req, res) => {
+    res.status(200).json({ status: "ok" });
+  });
+
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  });
+};
 
 const getUsdToBrlRate = async () => {
   try {
@@ -91,7 +105,7 @@ try {
 } catch (error) {
   console.error(error);
 }
-//
+
 client.on("ready", () => {
   console.log(`Logged in as ${client.user?.tag}!`);
 });
@@ -105,3 +119,5 @@ client.on("interactionCreate", async (interaction) => {
 });
 
 client.login(appToken);
+
+startHealthCheck();
