@@ -120,8 +120,6 @@ dolinhoClient.on(Events.ClientReady, async () => {
     }
   }
 
-  // TODO: armazenad valores historicos para adicionar emoji de que o valor subiu ou desceu
-
   // Initialize the cron job that send updates to each channel
   // Openning the market
   cron.schedule("0 0 9 * * *", async () => {
