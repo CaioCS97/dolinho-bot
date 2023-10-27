@@ -102,7 +102,7 @@ dolinhoClient.on(Events.ClientReady, async () => {
 
   // Initialize the cron job that send updates to each channel
   // TODO: armazenad valores historicos para adicionar emoji de que o valor subiu ou desceu
-  cron.schedule("0 0 8-22 * * *", async () => {
+  cron.schedule("0 0 9-18 * * *", async () => {
     const channels = dolinhoClient.channels.cache
       .filter(channel => channel.isTextBased() ? (channel as TextChannel).name === 'dolinho' : false)
       .values() as IterableIterator<TextChannel>
