@@ -9,6 +9,9 @@
     "start": "ts-node-esm ./src/index.ts",
     "test": "jest"
   },
+  "engines": {
+    "node": "18.x"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
