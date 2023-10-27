@@ -14,11 +14,21 @@ import {
 } from "./constants/index.js";
 
 import { DolinhoCommand } from "./types/index.js";
+import { calculateVariation } from "./utils/index.js";
 import {
   createOpenExchangeClient
 } from "./oxr/index.js";
 import cron from "node-cron";
 import express from "express";
+
+/**
+ * Vars
+ */
+let dolinhoMarketOpenningRate: number | null = null
+let dolinhoMarketClosingRate: number | null = null
+
+let dolinhoMarketLastRate: number | null = null
+let dolinhoMarketCurrentRate: number | null = null
 
 /**
  * Open Exchange Rates Client
@@ -51,8 +61,18 @@ dolinhoCommands.set("usd", {
     .setName('usd')
     .setDescription('Replies with the USD quotation!'),
   execute: async (interaction: CommandInteraction) => {
-    const rate = await oxr.getLatestRate('BRL')
-    await interaction.reply(`1 USD === ${rate} BRL!`);
+
+    if (!dolinhoMarketCurrentRate) {
+      dolinhoMarketLastRate = dolinhoMarketCurrentRate = await oxr.getLatestRate('BRL')
+    }
+
+    const [marketVariation, marketVariationPercentage] = calculateVariation(dolinhoMarketLastRate ?? 0, dolinhoMarketCurrentRate ?? 0)
+
+    if (marketVariation === 0) {
+      await interaction.reply(`O **USD** ta valendo **${dolinhoMarketCurrentRate} BRL**!`);
+    } else {
+      await interaction.reply(`O **USD** ta valendo **${dolinhoMarketCurrentRate} BRL**! (${ marketVariation > 0 ? "👆🏻" : "👇🏻" } ${marketVariation} | ${marketVariationPercentage}%)`);
+    }
   },
 });
 
@@ -101,8 +121,15 @@ dolinhoClient.on(Events.ClientReady, async () => {
   }
 
   // Initialize the cron job that send updates to each channel
-  // TODO: armazenad valores historicos para adicionar emoji de que o valor subiu ou desceu
-  cron.schedule("0 0 9-18 * * *", async () => {
+  // Openning the market
+  cron.schedule("0 0 9 * * *", async () => {
+    try {
+      dolinhoMarketOpenningRate = dolinhoMarketLastRate = dolinhoMarketCurrentRate = await oxr.getLatestRate('BRL')
+    } catch (error) {
+      console.error(error)
+      return
+    }
+
     const channels = dolinhoClient.channels.cache
       .filter(channel => channel.isTextBased() ? (channel as TextChannel).name === 'dolinho' : false)
       .values() as IterableIterator<TextChannel>
@@ -110,12 +137,78 @@ dolinhoClient.on(Events.ClientReady, async () => {
     for (const channel of channels) {
       try {
         console.log(`:D DOLINHO JUST UPDATED THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`)
-        await channel.send(`1 USD === ${await oxr.getLatestRate('BRL')} BRL!`)
+        await channel.send(`Mercado abriu e o **USD** está valendo **${dolinhoMarketOpenningRate} BRL**!`)
       } catch (error) {
         console.log(`:( DOLINHO FAILED TO UPDATE THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`)
       }
     }
   });
+
+  // 10 to 17h because 9 and 18 are already scheduled with the cron above and bellow
+  cron.schedule("0 0 10-17 * * *", async () => {
+    try {
+      dolinhoMarketLastRate = dolinhoMarketCurrentRate
+      dolinhoMarketCurrentRate = await oxr.getLatestRate('BRL')
+
+      const channels = dolinhoClient.channels.cache
+        .filter(channel => channel.isTextBased() ? (channel as TextChannel).name === 'dolinho' : false)
+        .values() as IterableIterator<TextChannel>
+
+      const [marketVariation, marketVariationPercentage] = calculateVariation(dolinhoMarketLastRate ?? 0, dolinhoMarketCurrentRate ?? 0)
+
+      for (const channel of channels) {
+        try {
+          console.log(`:D DOLINHO JUST UPDATED THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`)
+
+          if (marketVariation > 0) {
+            await channel.send(`USD **subiu** e está valendo ${dolinhoMarketOpenningRate} BRL! (👆🏻 ${marketVariation} | ${marketVariationPercentage})%`)
+          } else if (marketVariation === 0) {
+            await channel.send(`USD **estagnou** e está valendo ${dolinhoMarketOpenningRate} BRL!`)
+          } else {
+            await channel.send(`USD **caiu** e está valendo ${dolinhoMarketOpenningRate} BRL! (👇🏻 ${marketVariation} | ${marketVariationPercentage})%`)
+          }
+
+        } catch (error) {
+          console.log(`:( DOLINHO FAILED TO UPDATE THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`)
+        }
+      }
+    } catch (error) {
+      console.error(error)
+    }
+  });
+
+  // Closing the market
+  cron.schedule("0 0 18 * * *", async () => {
+    try {
+      dolinhoMarketClosingRate = await oxr.getLatestRate('BRL')
+    } catch (error) {
+      console.error(error)
+      return
+    }
+
+    const [marketVariation, marketVariationPercentage] = calculateVariation(dolinhoMarketOpenningRate ?? 0, dolinhoMarketClosingRate ?? 0)
+
+    const channels = dolinhoClient.channels.cache
+      .filter(channel => channel.isTextBased() ? (channel as TextChannel).name === 'dolinho' : false)
+      .values() as IterableIterator<TextChannel>
+
+    for (const channel of channels) {
+      try {
+        console.log(`:D DOLINHO JUST UPDATED THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`)
+
+        if (marketVariation > 0) {
+          await channel.send(`Mercado abriu e o USD **subiu** e está valendo ${dolinhoMarketOpenningRate} BRL! (👆🏻 ${marketVariation} | ${marketVariationPercentage})`)
+        } else if (marketVariation === 0) {
+          await channel.send(`Mercado abriu e o USD **estagnou** e está valendo ${dolinhoMarketOpenningRate} BRL!`)
+        } else {
+          await channel.send(`Mercado abriu e o USD **caiu** e está valendo ${dolinhoMarketOpenningRate} BRL! (👇🏻 ${marketVariation} | ${marketVariationPercentage})`)
+        }
+      } catch (error) {
+        console.log(`:( DOLINHO FAILED TO UPDATE THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`)
+      }
+    }
+  });
+
 })
 
 /**
