@@ -1,123 +1,178 @@
 import {
-  Client,
+  ChannelType,
+  Collection,
+  CommandInteraction,
+  Client as DiscordBotClient,
+  Events,
   GatewayIntentBits,
-  REST,
-  Routes,
-  WebhookClient,
+  SlashCommandBuilder,
+  TextChannel,
 } from "discord.js";
+import {
+  DISCORD_APP_TOKEN,
+  OPEN_EXCHANGE_RATES_API_KEY
+} from "./constants/index.js";
+
+import { DolinhoCommand } from "./types/index.js";
+import {
+  createOpenExchangeClient
+} from "./oxr/index.js";
 import cron from "node-cron";
-import dotenv from "dotenv";
 import express from "express";
-import fetch from "node-fetch";
 
-dotenv.config();
+/**
+ * Open Exchange Rates Client
+ */
+const oxr = createOpenExchangeClient(OPEN_EXCHANGE_RATES_API_KEY);
 
-interface DollarRates {
-  rates: Record<string, number>;
-  base: string;
-  timestamp: number;
-  license: string;
-  disclaimer: string;
-}
-
-const openExchangeRatesApiKey = process.env.OPEN_EXCHANGE_API_KEY ?? "";
-const appId = process.env.APP_ID ?? "";
-const appToken = process.env.APP_TOKEN ?? "";
-const webhookClientId = process.env.WEBHOOK_ID;
-const webhookClientToken = process.env.WEBHOOK_TOKEN;
-
-const webhookUrl = `https://discord.com/api/webhooks/${webhookClientId}/${webhookClientToken}`;
-
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-
-const startHealthCheck = () => {
-  const app = express();
-  const port = process.env.PORT ?? 3000;
-
-  app.get("/health", (req, res) => {
-    res.status(200).json({ status: "ok" });
-  });
-
-  app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-  });
-};
-
-const getUsdToBrlRate = async () => {
-  try {
-    const response = await fetch(
-      `https://openexchangerates.org/api/latest.json?app_id=${openExchangeRatesApiKey}&prettyprint=false&show_alternative=false&show_inactive=false`
-    );
-    const data = (await response.json()) as DollarRates;
-    return `R$ ${data.rates["BRL"].toLocaleString("pt-BR")}`;
-  } catch (error) {
-    console.error;
-    throw error;
-  }
-};
-
-async function sendRateUpdate() {
-  const rate = await getUsdToBrlRate();
-  const message = `O dolinha tá: ${rate} -  ${new Date().toLocaleString(
-    "pt-BR"
-  )}`;
-
-  const webhookClient = new WebhookClient({
-    url: webhookUrl,
-  });
-
-  webhookClient.send({
-    embeds: [
-      {
-        title: message,
-        image: {
-          url:
-            Number(rate.at(3)) > 4
-              ? "https://istoedinheiro.com.br/wp-content/uploads/sites/17/2020/03/guedes.jpg"
-              : "https://img.ibxk.com.br/2015/09/22/22172624838652.jpg?ims=328x",
-        },
-      },
-    ],
-  });
-  console.log("Rate update sent:", message);
-}
-
-// Schedule rate updates to run every hour
-cron.schedule("0 0 8-22 * * *", () => {
-  sendRateUpdate();
+/**
+ * Discord Bot Client
+ */
+const dolinhoClient = new DiscordBotClient({
+  intents: [
+    GatewayIntentBits.Guilds
+  ],
 });
 
-const commands = [
-  {
-    name: "to_rico",
-    description: "Retorna a cotação atual do dolar em reais",
+/** Commands */
+const dolinhoCommands = new Collection<string, DolinhoCommand>()
+
+dolinhoCommands.set("ping", {
+  data: new SlashCommandBuilder()
+    .setName('ping')
+    .setDescription('Replies with Pong!'),
+  execute: async (interaction: CommandInteraction) => {
+    await interaction.reply('Pong!');
   },
-];
-
-const rest = new REST({ version: "10" }).setToken(appToken);
-
-try {
-  console.log("Started refreshing application (/) commands.", appId);
-
-  await rest.put(Routes.applicationCommands(appId), { body: commands });
-
-  console.log("Successfully reloaded application (/) commands.");
-} catch (error) {
-  console.error(error);
-}
-
-client.on("ready", () => {
-  console.log(`Logged in as ${client.user?.tag}!`);
 });
 
-client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
+dolinhoCommands.set("usd", {
+  data: new SlashCommandBuilder()
+    .setName('usd')
+    .setDescription('Replies with the USD quotation!'),
+  execute: async (interaction: CommandInteraction) => {
+    const rate = await oxr.getLatestRate('BRL')
+    await interaction.reply(`1 USD === ${rate} BRL!`);
+  },
+});
 
-  if (interaction.commandName === "to_rico") {
-    await interaction.reply(`O dolinha tá ${await getUsdToBrlRate()}`);
+dolinhoCommands.set("11", {
+  data: new SlashCommandBuilder()
+    .setName('11')
+    .setDescription('Celso portiole não tem nada a ver com isso'),
+  execute: async (interaction: CommandInteraction) => {
+    await interaction.reply(`✈💥🏢 🏢`);
+  },
+});
+
+/** Events */
+
+/** When the bot is ready, it checks all Guilds */
+dolinhoClient.on(Events.ClientReady, async () => {
+  console.log(`=== DOLINHO LOGGED IN AS: ${dolinhoClient.user?.tag}! ===`);
+
+  // Handle stuff for each guild the bot is in
+  for (const guild of dolinhoClient.guilds.cache.values()) {
+    console.log(`=== DOLINHO IS REGISTERED ON THE GUILD: ${guild.name} - ${guild.id}! ===`);
+
+    for (const command of dolinhoCommands.values()) {
+      console.log(`====> DOLINHO IS REGISTERING COMMAND: /${command.data.name} on the GUILD: ${guild.name} - ${guild.id}!`);
+
+      await guild.commands.create(command.data)
+    }
+
+    const channel = guild.channels.cache.find(channel => channel.name === 'dolinho')
+
+    if (!channel) {
+      console.log(`====> DOLINHO CHANNEL IS NOT REGISTERED ON THE CHANNEL: Dolinho on the GUILD: ${guild.name} - ${guild.id}!`);
+
+      try {
+        await guild.channels.create({
+          name: 'Dolinho',
+          type: ChannelType.GuildText as any,
+          topic: 'DOLINHO IS HERE TO HELP YOU!'
+        })
+
+        console.log(`====> DOLINHO CHANNEL REGISTERED ON THE CHANNEL: Dolinho on the GUILD: ${guild.name} - ${guild.id}!`);
+      } catch (error) {
+        console.log(`====> FAILED TO REGISTER THE DOLINHO CHANNEL ON THE GUILD: ${guild.name} - ${guild.id}!`);
+      }
+    }
+  }
+
+  // Initialize the cron job that send updates to each channel
+  // TODO: armazenad valores historicos para adicionar emoji de que o valor subiu ou desceu
+  cron.schedule("0 0 9-18 * * *", async () => {
+    const channels = dolinhoClient.channels.cache
+      .filter(channel => channel.isTextBased() ? (channel as TextChannel).name === 'dolinho' : false)
+      .values() as IterableIterator<TextChannel>
+
+    for (const channel of channels) {
+      try {
+        console.log(`:D DOLINHO JUST UPDATED THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`)
+        await channel.send(`1 USD === ${await oxr.getLatestRate('BRL')} BRL!`)
+      } catch (error) {
+        console.log(`:( DOLINHO FAILED TO UPDATE THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`)
+      }
+    }
+  });
+})
+
+/**
+ * When the bot joins a new guild it adds all commands to the guild
+ */
+dolinhoClient.on(Events.GuildCreate, async (guild) => {
+  console.log(`DOLINHO JOINED A FUCKING NEW GUILD: ${guild.name} - ${guild.id}!`);
+
+  for (const command of dolinhoCommands.values()) {
+    console.log(`DOLINHO IS REGISTERING COMMAND: /${command.data.name} on the GUILD: ${guild.name} - ${guild.id}!`);
+
+    await guild.commands.create(command.data)
+  }
+})
+
+dolinhoClient.on(Events.InteractionCreate, async interaction => {
+  // Handle Commands
+  if (interaction.isChatInputCommand()) {
+    const command = dolinhoCommands.get(interaction.commandName);
+
+    if (!command) {
+      console.error(`No command matching ${interaction.commandName} was found.`);
+      return;
+    }
+
+    try {
+      console.log(`DOLINHO IS EXECUTING THE FUCKING COMMAND: /${interaction.commandName}!`)
+      await command.execute(interaction);
+    } catch (error) {
+      console.error(error);
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+      } else {
+        await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+      }
+    }
   }
 });
 
-client.login(appToken);
+/**
+ * Express Server
+ */
+const app = express();
+const port = process.env.PORT ?? 3000;
 
-startHealthCheck();
+app.get("/health", (req, res): void => {
+  res.status(200).json({ status: "ok" });
+});
+
+
+/**
+ * Startup
+ */
+await dolinhoClient.login(DISCORD_APP_TOKEN)
+
+console.log(`DOLINHO IS FUCKING ALIVE AND RUNNING!!!`)
+
+app.listen(port, () => {
+  console.log(`DOLINHO FUCKING SERVER IS RUNNING ON: ${port}!!!`);
+});
