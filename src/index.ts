@@ -1,34 +1,24 @@
 import {
   ChannelType,
-  Collection,
-  CommandInteraction,
   Client as DiscordBotClient,
   Events,
   GatewayIntentBits,
-  SlashCommandBuilder,
-  TextChannel,
 } from "discord.js";
 import {
   DISCORD_APP_TOKEN,
-  OPEN_EXCHANGE_RATES_API_KEY
+  OPEN_EXCHANGE_RATES_API_KEY,
 } from "./constants/index.js";
-
-import { DolinhoCommand } from "./types/index.js";
-import { calculateVariation } from "./utils/index.js";
+import { Market, MarketEvents } from "./market/index.js";
 import {
-  createOpenExchangeClient
-} from "./oxr/index.js";
-import cron from "node-cron";
+  loadDolinhoSlashCommandsFromFileSystem,
+  loadDolinhoSlashCommandsOnGuild,
+} from "./discord/index.js";
+
+import { B3WorkingDaysCronJob } from "./cron/index.js";
+import { createOpenExchangeClient } from "./oxr/index.js";
+import dolinhoScheduler from "node-cron";
 import express from "express";
-
-/**
- * Vars
- */
-let dolinhoMarketOpenningRate: number | null = null
-let dolinhoMarketClosingRate: number | null = null
-
-let dolinhoMarketLastRate: number | null = null
-let dolinhoMarketCurrentRate: number | null = null
+import { getAllDolinhoChannels } from "./utils/index.js";
 
 /**
  * Open Exchange Rates Client
@@ -39,210 +29,199 @@ const oxr = createOpenExchangeClient(OPEN_EXCHANGE_RATES_API_KEY);
  * Discord Bot Client
  */
 const dolinhoClient = new DiscordBotClient({
-  intents: [
-    GatewayIntentBits.Guilds
-  ],
+  intents: [GatewayIntentBits.Guilds],
+});
+
+const dolinhoB3Market = new Market();
+
+// Initializes the market with the corretc rates
+dolinhoB3Market.setClosingRate(await oxr.getYesterdayRate("BRL"));
+dolinhoB3Market.setOpenningRate(await oxr.getYesterdayRate("BRL"));
+dolinhoB3Market.setCurrentRate(await oxr.getLatestRate("BRL"));
+
+dolinhoB3Market.on(MarketEvents.Openning, ({ rate }) => {
+  const channels = getAllDolinhoChannels(dolinhoClient);
+  const payload = `Mercado abriu e o **USD** está valendo **${rate} BRL**!`;
+
+  for (const channel of channels) {
+    channel
+      .send(payload)
+      .then(() => {
+        console.log(
+          `:D DOLINHO JUST UPDATED THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`
+        );
+      })
+      .catch(console.error);
+  }
+});
+
+dolinhoB3Market.on(MarketEvents.Lastest, ({ rate, variation, percentage }) => {
+  const channels = getAllDolinhoChannels(dolinhoClient);
+
+  // prettier-ignore
+  const payload = !variation
+      ? `O **USD** está valendo **${rate} BRL**! (0.0 / 0.0%)`
+      : variation > 0
+        ? `O **USD** **SUBIU** e está valendo **${rate} BRL**! (↑ ${variation.toFixed(4)} / ${percentage.toFixed(4)}%)`
+        : `O **USD** **CAIU** e está valendo **${rate} BRL**! (↓ ${variation.toFixed(4)} / ${percentage.toFixed(4)}%)`;
+
+  for (const channel of channels) {
+    channel
+      .send(payload)
+      .then(() => {
+        console.log(
+          `:D DOLINHO JUST UPDATED THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`
+        );
+      })
+      .catch(console.error);
+  }
+});
+
+dolinhoB3Market.on(MarketEvents.Closing, ({ rate, variation, percentage }) => {
+  const channels = getAllDolinhoChannels(dolinhoClient);
+
+  // prettier-ignore
+  const payload = !variation
+      ? `O mercado **FECHOU**, o **USD** não variou e está valendo **${rate} BRL**! (0.0 / 0.0%)`
+      : variation > 0
+        ? `O mercado **FECHOU**, o **USD** **SUBIU** e está valendo **${rate} BRL**! (↑ ${variation.toFixed(4)} / ${percentage.toFixed(4)}%)`
+        : `O mercado **FECHOU**, o **USD** **CAIU** e está valendo **${rate} BRL**! (↓ ${variation.toFixed(4)} / ${percentage.toFixed(4)}%)`;
+
+  for (const channel of channels) {
+    channel
+      .send(payload)
+      .then(() => {
+        console.log(
+          `:D DOLINHO JUST UPDATED THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`
+        );
+      })
+      .catch(console.error);
+  }
 });
 
 /** Commands */
-const dolinhoCommands = new Collection<string, DolinhoCommand>()
-
-dolinhoCommands.set("ping", {
-  data: new SlashCommandBuilder()
-    .setName('ping')
-    .setDescription('Replies with Pong!'),
-  execute: async (interaction: CommandInteraction) => {
-    await interaction.reply('Pong!');
-  },
-});
-
-dolinhoCommands.set("usd", {
-  data: new SlashCommandBuilder()
-    .setName('usd')
-    .setDescription('Replies with the USD quotation!'),
-  execute: async (interaction: CommandInteraction) => {
-
-    if (!dolinhoMarketCurrentRate) {
-      dolinhoMarketLastRate = dolinhoMarketCurrentRate = await oxr.getLatestRate('BRL')
-    }
-
-    const [marketVariation, marketVariationPercentage] = calculateVariation(dolinhoMarketLastRate ?? 0, dolinhoMarketCurrentRate ?? 0)
-
-    if (marketVariation === 0) {
-      await interaction.reply(`O **USD** ta valendo **${dolinhoMarketCurrentRate} BRL**!`);
-    } else {
-      await interaction.reply(`O **USD** ta valendo **${dolinhoMarketCurrentRate} BRL**! (${ marketVariation > 0 ? "👆🏻" : "👇🏻" } ${marketVariation} | ${marketVariationPercentage}%)`);
-    }
-  },
-});
-
-dolinhoCommands.set("11", {
-  data: new SlashCommandBuilder()
-    .setName('11')
-    .setDescription('Celso portiole não tem nada a ver com isso'),
-  execute: async (interaction: CommandInteraction) => {
-    await interaction.reply(`✈💥🏢 🏢`);
-  },
-});
+const dolinhoSlashCommands = await loadDolinhoSlashCommandsFromFileSystem();
 
 /** Events */
-
 /** When the bot is ready, it checks all Guilds */
 dolinhoClient.on(Events.ClientReady, async () => {
   console.log(`=== DOLINHO LOGGED IN AS: ${dolinhoClient.user?.tag}! ===`);
 
   // Handle stuff for each guild the bot is in
   for (const guild of dolinhoClient.guilds.cache.values()) {
-    console.log(`=== DOLINHO IS REGISTERED ON THE GUILD: ${guild.name} - ${guild.id}! ===`);
+    console.log(
+      `=== DOLINHO IS REGISTERED ON THE GUILD: ${guild.name} - ${guild.id}! ===`
+    );
 
-    for (const command of dolinhoCommands.values()) {
-      console.log(`====> DOLINHO IS REGISTERING COMMAND: /${command.data.name} on the GUILD: ${guild.name} - ${guild.id}!`);
+    await loadDolinhoSlashCommandsOnGuild(dolinhoSlashCommands, guild);
 
-      await guild.commands.create(command.data)
-    }
-
-    const channel = guild.channels.cache.find(channel => channel.name === 'dolinho')
+    const channel = guild.channels.cache.find(
+      (channel) => channel.name === "dolinho"
+    );
 
     if (!channel) {
-      console.log(`====> DOLINHO CHANNEL IS NOT REGISTERED ON THE CHANNEL: Dolinho on the GUILD: ${guild.name} - ${guild.id}!`);
+      console.log(
+        `====> DOLINHO CHANNEL IS NOT REGISTERED ON THE CHANNEL: Dolinho on the GUILD: ${guild.name} - ${guild.id}!`
+      );
 
       try {
         await guild.channels.create({
-          name: 'Dolinho',
+          name: "Dolinho",
           type: ChannelType.GuildText as any,
-          topic: 'DOLINHO IS HERE TO HELP YOU!'
-        })
+          topic: "DOLINHO IS HERE TO HELP YOU!",
+        });
 
-        console.log(`====> DOLINHO CHANNEL REGISTERED ON THE CHANNEL: Dolinho on the GUILD: ${guild.name} - ${guild.id}!`);
+        console.log(
+          `====> DOLINHO CHANNEL REGISTERED ON THE CHANNEL: Dolinho on the GUILD: ${guild.name} - ${guild.id}!`
+        );
       } catch (error) {
-        console.log(`====> FAILED TO REGISTER THE DOLINHO CHANNEL ON THE GUILD: ${guild.name} - ${guild.id}!`);
+        console.log(
+          `====> FAILED TO REGISTER THE DOLINHO CHANNEL ON THE GUILD: ${guild.name} - ${guild.id}!`
+        );
       }
     }
   }
 
   // Initialize the cron job that send updates to each channel
   // Openning the market
-  cron.schedule("0 0 9 * * *", async () => {
+  dolinhoScheduler.schedule(B3WorkingDaysCronJob.Openning, async () => {
     try {
-      dolinhoMarketOpenningRate = dolinhoMarketLastRate = dolinhoMarketCurrentRate = await oxr.getLatestRate('BRL')
+      dolinhoB3Market.setOpenningRate(await oxr.getLatestRate("BRL"));
     } catch (error) {
-      console.error(error)
-      return
-    }
-
-    const channels = dolinhoClient.channels.cache
-      .filter(channel => channel.isTextBased() ? (channel as TextChannel).name === 'dolinho' : false)
-      .values() as IterableIterator<TextChannel>
-
-    for (const channel of channels) {
-      try {
-        console.log(`:D DOLINHO JUST UPDATED THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`)
-        await channel.send(`Mercado abriu e o **USD** está valendo **${dolinhoMarketOpenningRate} BRL**!`)
-      } catch (error) {
-        console.log(`:( DOLINHO FAILED TO UPDATE THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`)
-      }
+      console.error(error);
     }
   });
 
   // 10 to 17h because 9 and 18 are already scheduled with the cron above and bellow
-  cron.schedule("0 0 10-17 * * *", async () => {
+  dolinhoScheduler.schedule(B3WorkingDaysCronJob.Working, async () => {
     try {
-      dolinhoMarketLastRate = dolinhoMarketCurrentRate
-      dolinhoMarketCurrentRate = await oxr.getLatestRate('BRL')
-
-      const channels = dolinhoClient.channels.cache
-        .filter(channel => channel.isTextBased() ? (channel as TextChannel).name === 'dolinho' : false)
-        .values() as IterableIterator<TextChannel>
-
-      const [marketVariation, marketVariationPercentage] = calculateVariation(dolinhoMarketLastRate ?? 0, dolinhoMarketCurrentRate ?? 0)
-
-      for (const channel of channels) {
-        try {
-          console.log(`:D DOLINHO JUST UPDATED THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`)
-
-          if (marketVariation > 0) {
-            await channel.send(`USD **subiu** e está valendo ${dolinhoMarketOpenningRate} BRL! (👆🏻 ${marketVariation} | ${marketVariationPercentage})%`)
-          } else if (marketVariation === 0) {
-            await channel.send(`USD **estagnou** e está valendo ${dolinhoMarketOpenningRate} BRL!`)
-          } else {
-            await channel.send(`USD **caiu** e está valendo ${dolinhoMarketOpenningRate} BRL! (👇🏻 ${marketVariation} | ${marketVariationPercentage})%`)
-          }
-
-        } catch (error) {
-          console.log(`:( DOLINHO FAILED TO UPDATE THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`)
-        }
-      }
+      dolinhoB3Market.setCurrentRate(await oxr.getLatestRate("BRL"));
     } catch (error) {
-      console.error(error)
+      console.error(error);
     }
   });
 
   // Closing the market
-  cron.schedule("0 0 18 * * *", async () => {
+  dolinhoScheduler.schedule(B3WorkingDaysCronJob.Closing, async () => {
     try {
-      dolinhoMarketClosingRate = await oxr.getLatestRate('BRL')
+      dolinhoB3Market.setClosingRate(await oxr.getLatestRate("BRL"));
     } catch (error) {
-      console.error(error)
-      return
-    }
-
-    const [marketVariation, marketVariationPercentage] = calculateVariation(dolinhoMarketOpenningRate ?? 0, dolinhoMarketClosingRate ?? 0)
-
-    const channels = dolinhoClient.channels.cache
-      .filter(channel => channel.isTextBased() ? (channel as TextChannel).name === 'dolinho' : false)
-      .values() as IterableIterator<TextChannel>
-
-    for (const channel of channels) {
-      try {
-        console.log(`:D DOLINHO JUST UPDATED THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`)
-
-        if (marketVariation > 0) {
-          await channel.send(`Mercado abriu e o USD **subiu** e está valendo ${dolinhoMarketOpenningRate} BRL! (👆🏻 ${marketVariation} | ${marketVariationPercentage})`)
-        } else if (marketVariation === 0) {
-          await channel.send(`Mercado abriu e o USD **estagnou** e está valendo ${dolinhoMarketOpenningRate} BRL!`)
-        } else {
-          await channel.send(`Mercado abriu e o USD **caiu** e está valendo ${dolinhoMarketOpenningRate} BRL! (👇🏻 ${marketVariation} | ${marketVariationPercentage})`)
-        }
-      } catch (error) {
-        console.log(`:( DOLINHO FAILED TO UPDATE THE CHANNEL: ${channel.name} on the GUILD: ${channel.guild.name} - ${channel.guild.id}!`)
-      }
+      console.error(error);
     }
   });
-
-})
+});
 
 /**
  * When the bot joins a new guild it adds all commands to the guild
  */
 dolinhoClient.on(Events.GuildCreate, async (guild) => {
-  console.log(`DOLINHO JOINED A FUCKING NEW GUILD: ${guild.name} - ${guild.id}!`);
+  console.log(
+    `DOLINHO JOINED A FUCKING NEW GUILD: ${guild.name} - ${guild.id}!`
+  );
 
-  for (const command of dolinhoCommands.values()) {
-    console.log(`DOLINHO IS REGISTERING COMMAND: /${command.data.name} on the GUILD: ${guild.name} - ${guild.id}!`);
+  for (const command of dolinhoSlashCommands.values()) {
+    console.log(
+      `DOLINHO IS REGISTERING COMMAND: /${command.data.name} on the GUILD: ${guild.name} - ${guild.id}!`
+    );
 
-    await guild.commands.create(command.data)
+    await guild.commands.create(command.data);
   }
-})
+});
 
-dolinhoClient.on(Events.InteractionCreate, async interaction => {
+dolinhoClient.on(Events.InteractionCreate, async (interaction) => {
   // Handle Commands
   if (interaction.isChatInputCommand()) {
-    const command = dolinhoCommands.get(interaction.commandName);
+    const command = dolinhoSlashCommands.get(interaction.commandName);
 
     if (!command) {
-      console.error(`No command matching ${interaction.commandName} was found.`);
+      console.error(
+        `No command matching ${interaction.commandName} was found.`
+      );
       return;
     }
 
     try {
-      console.log(`DOLINHO IS EXECUTING THE FUCKING COMMAND: /${interaction.commandName}!`)
-      await command.execute(interaction);
+      console.log(
+        `DOLINHO IS EXECUTING THE FUCKING COMMAND: /${interaction.commandName}!`
+      );
+      await command.execute(
+        dolinhoClient,
+        interaction,
+        dolinhoB3Market,
+        dolinhoSlashCommands
+      );
     } catch (error) {
       console.error(error);
       if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+        await interaction.followUp({
+          content: "There was an error while executing this command!",
+          ephemeral: true,
+        });
       } else {
-        await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+        await interaction.reply({
+          content: "There was an error while executing this command!",
+          ephemeral: true,
+        });
       }
     }
   }
@@ -258,13 +237,12 @@ app.get("/health", (req, res): void => {
   res.status(200).json({ status: "ok" });
 });
 
-
 /**
  * Startup
  */
-await dolinhoClient.login(DISCORD_APP_TOKEN)
+await dolinhoClient.login(DISCORD_APP_TOKEN);
 
-console.log(`DOLINHO IS FUCKING ALIVE AND RUNNING!!!`)
+console.log(`DOLINHO IS FUCKING ALIVE AND RUNNING!!!`);
 
 app.listen(port, () => {
   console.log(`DOLINHO FUCKING SERVER IS RUNNING ON: ${port}!!!`);
