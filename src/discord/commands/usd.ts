@@ -2,7 +2,7 @@ import { DolinhoCommand } from "../../types";
 import { SlashCommandBuilder } from "discord.js";
 
 const command: DolinhoCommand = {
-  dev: true,
+  dev: false,
   data: new SlashCommandBuilder()
     .setName("usd")
     .setDescription("Replies with the current USD quotation"),
