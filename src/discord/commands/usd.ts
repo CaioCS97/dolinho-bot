@@ -5,7 +5,7 @@ const command: DolinhoCommand = {
   dev: true,
   data: new SlashCommandBuilder()
     .setName("usd")
-    .setDescription("Replies with Pong!"),
+    .setDescription("Replies with the current USD quotation"),
   execute: async (client, interaction, market) => {
     const { rate, variation, percentage } =
       market.getCurrentRateVariationObject();
