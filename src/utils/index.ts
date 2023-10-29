@@ -1,6 +1,25 @@
-export function calculateVariation (originalValue: number, currentValue: number): [number, number] {
-  const variation = currentValue - originalValue
-  const percentage = (variation / originalValue) * 100
+import { Client, TextChannel } from "discord.js";
 
-  return [variation, percentage]
+export function calculateVariation(
+  originalValue: number | null,
+  currentValue: number | null
+): [number, number] {
+  if (!originalValue || !currentValue || originalValue === currentValue) {
+    return [0, 0];
+  }
+
+  const variation = currentValue - originalValue;
+  const percentage = (variation / originalValue) * 100;
+
+  return [variation, percentage];
+}
+
+export function getAllDolinhoChannels(client: Client) {
+  return client.channels.cache
+    .filter((channel) =>
+      channel.isTextBased()
+        ? (channel as TextChannel).name === "dolinho"
+        : false
+    )
+    .values() as IterableIterator<TextChannel>;
 }
