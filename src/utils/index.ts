@@ -4,7 +4,7 @@ export function calculateVariation(
   originalValue: number | null,
   currentValue: number | null
 ): [number, number] {
-  if (!originalValue || !currentValue) {
+  if (!originalValue || !currentValue || originalValue === currentValue) {
     return [0, 0];
   }
 
