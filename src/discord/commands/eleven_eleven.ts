@@ -2,7 +2,7 @@ import { DolinhoCommand } from "../../types";
 import { SlashCommandBuilder } from "discord.js";
 
 const command: DolinhoCommand = {
-  dev: true,
+  dev: false,
   data: new SlashCommandBuilder()
     .setName("11")
     .setDescription("Celso Portiolli não tem nada a ver com isso 🏢 🏢!"),
