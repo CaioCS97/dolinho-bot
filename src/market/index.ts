@@ -59,7 +59,7 @@ export class Market extends EventEmitter implements MarketEventsListeners {
 
   setCurrentRate(rate: number) {
     // Since we cant retrieve the data from the last hour, we need to initialize the last rate with the current rate,
-    // so we can calculate the variation and percentage on the first update without getting crazy and irrealistc values.
+    // so we can calculate the variation and percentage on the first update without getting crazy and unrealistic values.
     this.lastRate = this.currentRate || rate;
     this.currentRate = rate;
 

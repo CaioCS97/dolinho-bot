@@ -34,7 +34,7 @@ const dolinhoClient = new DiscordBotClient({
 
 const dolinhoB3Market = new Market();
 
-// Initializes the market with the corretc rates
+// Initialize the market with corretc rates
 dolinhoB3Market.setClosingRate(await oxr.getYesterdayRate("BRL"));
 dolinhoB3Market.setOpenningRate(await oxr.getYesterdayRate("BRL"));
 dolinhoB3Market.setCurrentRate(await oxr.getLatestRate("BRL"));
