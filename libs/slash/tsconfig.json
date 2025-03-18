@@ -4,13 +4,13 @@
   "include": [],
   "references": [
     {
-      "path": "../../libs/slash"
-    },
-    {
-      "path": "./tsconfig.app.json"
+      "path": "./tsconfig.lib.json"
     },
     {
       "path": "./tsconfig.spec.json"
     }
-  ]
+  ],
+  "nx": {
+    "addTypecheckTarget": false
+  }
 }

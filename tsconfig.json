@@ -4,10 +4,10 @@
   "files": [],
   "references": [
     {
-      "path": "./apps/bot-e2e"
+      "path": "./apps/bot"
     },
     {
-      "path": "./apps/bot"
+      "path": "./libs/slash"
     }
   ]
 }
