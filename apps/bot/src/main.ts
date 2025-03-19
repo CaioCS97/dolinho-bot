@@ -81,7 +81,7 @@ client.on(Events.GuildDelete, async (guild): Promise<void> => {
   console.log('left guild');
 });
 
-const usd = new Market(Symbols.USDBRL, 2 * 60 * 1000);
+const usd = new Market(Symbols.USDBRL, 10 * 60 * 1000);
 
 usd.on(MarketEvents.Update, async ({ close }) => {
   const { data, error } = await supa
@@ -96,7 +96,8 @@ usd.on(MarketEvents.Update, async ({ close }) => {
   for (const { channel_id } of data) {
     try {
       await api.channels.edit(channel_id, {
-        name: '💲usd🔺',
+        name: 'usd・' + close.toString().replaceAll('.', '․') + '▲▼',
+        topic: `Current quotation: US$ ${close.toString()}`,
       });
     } catch (error) {
       console.log(error);
