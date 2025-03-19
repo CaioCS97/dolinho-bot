@@ -1,18 +1,22 @@
 import assert from 'assert';
 
 import {
-  ChannelType,
   Client,
+  ChannelType,
   Events,
   GatewayIntentBits,
   Partials,
   SlashCommandBuilder,
 } from 'discord.js';
 
+import { REST } from '@discordjs/rest';
+import { API } from '@discordjs/core';
+
 import { createClient } from '@supabase/supabase-js';
 
 import { Slash } from '@dolinho/slash';
 import { Database } from '@dolinho/types';
+import { Market, Symbols, Events as MarketEvents } from '@dolinho/market';
 
 /**
  * Assertions
@@ -40,6 +44,12 @@ assert(
 /**
  * Client Stuff
  */
+const rest = new REST({ version: '10' }).setToken(
+  process.env.DISCORD_CLIENT_TOKEN
+);
+
+const api = new API(rest);
+
 const client = new Client({
   partials: [Partials.Channel, Partials.Message],
   intents: [GatewayIntentBits.Guilds],
@@ -49,7 +59,7 @@ const client = new Client({
   },
 });
 
-const supabase = createClient<Database>(
+const supa = createClient<Database>(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
@@ -71,8 +81,31 @@ client.on(Events.GuildDelete, async (guild): Promise<void> => {
   console.log('left guild');
 });
 
+const usd = new Market(Symbols.USDBRL, 2 * 60 * 1000);
+
+usd.on(MarketEvents.Update, async ({ close }) => {
+  const { data, error } = await supa
+    .from('discord_channels')
+    .select()
+    .eq('channel_currency', 'USD');
+
+  if (error) return console.log(error);
+
+  console.log('updating channels!');
+
+  for (const { channel_id } of data) {
+    try {
+      await api.channels.edit(channel_id, {
+        name: '💲usd🔺',
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  }
+});
+
 client.on(Events.GuildAvailable, async (guild): Promise<void> => {
-  const { error: guildUpsertError } = await supabase
+  const { error: guildUpsertError } = await supa
     .from('discord_guilds')
     .upsert({ guild_name: guild.name, guild_id: guild.id })
     .select();
@@ -81,7 +114,7 @@ client.on(Events.GuildAvailable, async (guild): Promise<void> => {
     throw new Error(guildUpsertError.message);
   }
 
-  const { data: guildChannels, error: guildChannelsError } = await supabase
+  const { data: guildChannels, error: guildChannelsError } = await supa
     .from('discord_channels')
     .select()
     .eq('guild_id', guild.id);
@@ -98,15 +131,14 @@ client.on(Events.GuildAvailable, async (guild): Promise<void> => {
       parent: category.id,
     });
 
-    const { error } = await supabase
+    await supa
       .from('discord_channels')
-      .upsert({
+      .insert({
         channel_id: channel.id,
         guild_id: guild.id,
+        channel_currency: 'USD',
       })
       .select();
-
-    console.log(error);
   }
 });
 
@@ -124,7 +156,7 @@ slash.command(
     if (!interaction.isRepliable()) return;
 
     await interaction.reply({
-      content: 'Foo Bar',
+      content: `A cotação atual do dolar é de: $${usd.getLatestRate()}`,
       ephemeral: true,
     });
   }

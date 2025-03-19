@@ -11,16 +11,19 @@ export type Database = {
     Tables: {
       discord_channels: {
         Row: {
+          channel_currency: Database["public"]["Enums"]["currency"]
           channel_id: string
           created_at: string
           guild_id: string
         }
         Insert: {
+          channel_currency: Database["public"]["Enums"]["currency"]
           channel_id: string
           created_at?: string
           guild_id: string
         }
         Update: {
+          channel_currency?: Database["public"]["Enums"]["currency"]
           channel_id?: string
           created_at?: string
           guild_id?: string
@@ -29,7 +32,7 @@ export type Database = {
           {
             foreignKeyName: "discord_channels_guild_id_fkey"
             columns: ["guild_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "discord_guilds"
             referencedColumns: ["guild_id"]
           },
@@ -61,7 +64,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      currency: "USD" | "BRL" | "EUR"
     }
     CompositeTypes: {
       [_ in never]: never

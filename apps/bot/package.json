@@ -2,6 +2,12 @@
   "name": "@dolinho-bot/bot",
   "version": "0.0.1",
   "private": true,
+  "dependencies": {
+    "@dolinho/slash": "latest",
+    "@dolinho/market": "latest",
+    "@dolinho/types": "latest",
+    "@dolinho/utils": "latest"
+  },
   "nx": {
     "name": "bot",
     "targets": {
@@ -50,7 +56,7 @@
         ],
         "options": {
           "buildTarget": "bot:build",
-          "runBuildTargetDependencies": false
+          "runBuildTargetDependencies": true
         },
         "configurations": {
           "development": {

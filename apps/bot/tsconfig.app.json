@@ -19,7 +19,13 @@
   ],
   "references": [
     {
+      "path": "../../libs/utils/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/types/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/market/tsconfig.lib.json"
     },
     {
       "path": "../../libs/slash/tsconfig.lib.json"

@@ -11,6 +11,12 @@
     },
     {
       "path": "./libs/types"
+    },
+    {
+      "path": "./libs/market"
+    },
+    {
+      "path": "./libs/utils"
     }
   ]
 }
