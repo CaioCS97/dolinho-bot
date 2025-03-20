@@ -9,52 +9,58 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      discord_channels: {
+      guilds: {
         Row: {
-          channel_currency: Database["public"]["Enums"]["currency"]
+          category_channel_id: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          category_channel_id: string
+          created_at?: string
+          id: string
+          name: string
+        }
+        Update: {
+          category_channel_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      symbols: {
+        Row: {
           channel_id: string
           created_at: string
           guild_id: string
+          id: number
+          symbol: string
         }
         Insert: {
-          channel_currency: Database["public"]["Enums"]["currency"]
           channel_id: string
           created_at?: string
           guild_id: string
+          id?: number
+          symbol: string
         }
         Update: {
-          channel_currency?: Database["public"]["Enums"]["currency"]
           channel_id?: string
           created_at?: string
           guild_id?: string
+          id?: number
+          symbol?: string
         }
         Relationships: [
           {
-            foreignKeyName: "discord_channels_guild_id_fkey"
+            foreignKeyName: "symbols_guild_id_fkey"
             columns: ["guild_id"]
             isOneToOne: false
-            referencedRelation: "discord_guilds"
-            referencedColumns: ["guild_id"]
+            referencedRelation: "guilds"
+            referencedColumns: ["id"]
           },
         ]
-      }
-      discord_guilds: {
-        Row: {
-          created_at: string
-          guild_id: string
-          guild_name: string | null
-        }
-        Insert: {
-          created_at?: string
-          guild_id: string
-          guild_name?: string | null
-        }
-        Update: {
-          created_at?: string
-          guild_id?: string
-          guild_name?: string | null
-        }
-        Relationships: []
       }
     }
     Views: {

@@ -3,10 +3,10 @@
   "version": "0.0.1",
   "private": true,
   "dependencies": {
-    "@dolinho/slash": "latest",
-    "@dolinho/market": "latest",
-    "@dolinho/types": "latest",
-    "@dolinho/utils": "latest"
+    "@dolinho/slash": "*",
+    "@dolinho/market": "*",
+    "@dolinho/types": "*",
+    "@dolinho/utils": "*"
   },
   "nx": {
     "name": "bot",

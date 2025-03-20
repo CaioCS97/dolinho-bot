@@ -15,5 +15,17 @@
   },
   "dependencies": {
     "tslib": "^2.3.0"
+  },
+  "nx": {
+    "targets": {
+      "generate-types": {
+        "command": "npx supabase gen types typescript --project-id wkkpojegwirehuipacnh --schema public > ./libs/types/src/database/index.ts"
+      },
+      "build": {
+        "dependsOn": [
+          "^generate-types"
+        ]
+      }
+    }
   }
 }

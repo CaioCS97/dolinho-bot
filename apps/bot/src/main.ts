@@ -1,10 +1,12 @@
 import assert from 'assert';
+import cron from 'node-cron';
 
 import {
-  Client,
   ChannelType,
+  Client,
   Events,
   GatewayIntentBits,
+  MessageFlags,
   Partials,
   SlashCommandBuilder,
 } from 'discord.js';
@@ -12,11 +14,12 @@ import {
 import { REST } from '@discordjs/rest';
 import { API } from '@discordjs/core';
 
-import { createClient } from '@supabase/supabase-js';
-
 import { Slash } from '@dolinho/slash';
 import { Database } from '@dolinho/types';
-import { Market, Symbols, Events as MarketEvents } from '@dolinho/market';
+import { createChannelName, hasThrown } from '@dolinho/utils';
+
+import { createClient } from '@supabase/supabase-js';
+import { MarketManager, Symbols } from '@dolinho/market';
 
 /**
  * Assertions
@@ -42,7 +45,7 @@ assert(
 );
 
 /**
- * Client Stuff
+ * Initialization Stuff
  */
 const rest = new REST({ version: '10' }).setToken(
   process.env.DISCORD_CLIENT_TOKEN
@@ -64,6 +67,14 @@ const supa = createClient<Database>(
   process.env.SUPABASE_ANON_KEY
 );
 
+const slash = new Slash(client);
+
+const symbols = new Symbols();
+const manager = new MarketManager(symbols.values());
+
+/**
+ * Client
+ */
 client.on(Events.ClientReady, async (): Promise<void> => {
   console.log('Discord Client ready!');
 });
@@ -73,95 +84,221 @@ client.on(Events.Error, (error) => {
   process.exit(1);
 });
 
+// TODO: improve metrics
 client.on(Events.GuildCreate, async (guild): Promise<void> => {
-  console.log('joined guild');
+  console.log(`${guild.name} installed Dolinho`);
 });
 
+// TODO: improve metrics
 client.on(Events.GuildDelete, async (guild): Promise<void> => {
-  console.log('left guild');
+  console.log(`${guild.name} uninstalled Dolinho`);
 });
 
-const usd = new Market(Symbols.USDBRL, 10 * 60 * 1000);
+// usd.on(MarketEvents.Update, async ({ close }) => {
+//   const { data, error } = await supa
+//     .from('discord_channels')
+//     .select()
+//     .eq('channel_currency', 'USD');
 
-usd.on(MarketEvents.Update, async ({ close }) => {
-  const { data, error } = await supa
-    .from('discord_channels')
-    .select()
-    .eq('channel_currency', 'USD');
+//   if (error) return console.log(error);
 
-  if (error) return console.log(error);
+//   console.log('updating channels!');
 
-  console.log('updating channels!');
-
-  for (const { channel_id } of data) {
-    try {
-      await api.channels.edit(channel_id, {
-        name: 'usd・' + close.toString().replaceAll('.', '․') + '▲▼',
-        topic: `Current quotation: US$ ${close.toString()}`,
-      });
-    } catch (error) {
-      console.log(error);
-    }
-  }
-});
+//   for (const { channel_id } of data) {
+//     try {
+//       await api.channels.edit(channel_id, {
+//         name: 'usd・' + close.toString().replaceAll('.', '․') + '▲▼',
+//         topic: `Current quotation: US$ ${close.toString()}`,
+//       });
+//     } catch (error) {
+//       console.log(error);
+//     }
+//   }
+// });
 
 client.on(Events.GuildAvailable, async (guild): Promise<void> => {
-  const { error: guildUpsertError } = await supa
-    .from('discord_guilds')
-    .upsert({ guild_name: guild.name, guild_id: guild.id })
-    .select();
+  const guilds = await supa.from('guilds').select().eq('id', guild.id);
+  const instance = guilds.data?.[0];
 
-  if (guildUpsertError) {
-    throw new Error(guildUpsertError.message);
-  }
-
-  const { data: guildChannels, error: guildChannelsError } = await supa
-    .from('discord_channels')
-    .select()
-    .eq('guild_id', guild.id);
-
-  if (!guildChannels?.length && !guildChannelsError) {
+  // Should create the channel and insert the guild into the DB
+  if (!instance) {
+    // Create the channel
     const category = await guild.channels.create({
-      name: 'Cotação',
+      name: 'Dolinho',
       type: ChannelType.GuildCategory,
     });
 
-    const channel = await guild.channels.create({
-      name: 'USD',
-      type: ChannelType.GuildText,
-      parent: category.id,
+    // Insert into the DB
+    const insert = await supa.from('guilds').insert({
+      id: guild.id,
+      name: guild.name,
+      category_channel_id: category.id,
     });
 
-    await supa
-      .from('discord_channels')
-      .insert({
-        channel_id: channel.id,
-        guild_id: guild.id,
-        channel_currency: 'USD',
-      })
-      .select();
+    if (insert.error) {
+      throw new Error('could not insert the data into the table');
+    }
+  } else {
+    const categoryDoesNotExists = await hasThrown(() =>
+      api.channels.get(instance.category_channel_id)
+    );
+
+    // Initialize the category channel if it doesnt exists or was deleted
+    if (categoryDoesNotExists) {
+      const category = await guild.channels.create({
+        name: 'Dolinho',
+        type: ChannelType.GuildCategory,
+      });
+
+      // Insert into the DB
+      const update = await supa
+        .from('guilds')
+        .update({
+          id: guild.id,
+          category_channel_id: category.id,
+        })
+        .eq('id', guild.id);
+
+      if (update.error) {
+        throw new Error(update.error.message);
+      }
+    }
   }
 });
 
 /**
  * Command Stuff
  */
-const slash = new Slash(client);
-
 slash.command(
   async () =>
     new SlashCommandBuilder()
       .setName('usd')
       .setDescription('Informa a cotação atual do dolar'),
   async (interaction) => {
+    console.log('asdasd');
+
     if (!interaction.isRepliable()) return;
 
     await interaction.reply({
-      content: `A cotação atual do dolar é de: $${usd.getLatestRate()}`,
+      content: `A cotação atual do dolar é de: $ 6.66 trumps`,
       ephemeral: true,
     });
   }
 );
+
+slash.command(
+  async () =>
+    new SlashCommandBuilder()
+      .setName('add')
+      .setDescription('Adiciona um simbolo à Guilda')
+      .addStringOption((option) =>
+        option
+          .setName('symbol')
+          .setDescription('Selecione o simbolo a ser adicionado a sua guild')
+          .setChoices(
+            ...symbols.keys().map((name) => ({
+              name: name,
+              value: name,
+            }))
+          )
+          .setRequired(true)
+      ),
+  async (interaction) => {
+    assert(interaction.guild?.id);
+    assert(interaction.isRepliable());
+    assert(interaction.isChatInputCommand());
+
+    const symbol = interaction.options.get('symbol')?.value as string | null;
+
+    if (!symbol) {
+      await interaction.reply({
+        content: `ERROR: Symbol was not provided!`,
+        flags: MessageFlags.Ephemeral,
+      });
+
+      return;
+    }
+
+    const tradingViewSymbol = symbols.get(symbol);
+
+    if (!tradingViewSymbol) {
+      await interaction.reply({
+        content: `ERROR: Symbol is not supported!`,
+        flags: MessageFlags.Ephemeral,
+      });
+
+      return;
+    }
+
+    const guilds = await supa
+      .from('guilds')
+      .select()
+      .eq('id', interaction.guild.id);
+
+    assert(guilds.data);
+
+    const [{ category_channel_id }] = guilds.data;
+
+    const channel = await interaction.guild.channels.create({
+      name: createChannelName(symbol, 'foo', 'stable'),
+      parent: category_channel_id,
+    });
+
+    const insert = await supa.from('symbols').insert({
+      guild_id: interaction.guild.id,
+      channel_id: channel.id,
+      symbol: tradingViewSymbol,
+    });
+
+    if (insert.error) {
+      throw new Error(insert.error.message);
+    }
+
+    await interaction.reply({
+      content: `Symbolo added successfully!`,
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+);
+
+/**
+ * CRON
+ */
+cron.schedule('0 0 9 * * 1-5', async () => {
+  try {
+    console.log('foo');
+  } catch (error) {
+    console.error(error);
+  }
+});
+
+// 10 to 17h because 9 and 18 are already scheduled with the cron above and bellow
+cron.schedule('0 0 10-17 * * 1-5', async () => {
+  try {
+    console.log('foo');
+  } catch (error) {
+    console.error(error);
+  }
+});
+
+// Closing the market
+cron.schedule('0 0 18 * * 1-5', async () => {
+  try {
+    console.log('foo');
+  } catch (error) {
+    console.error(error);
+  }
+});
+
+// every 30 minutes, update all channel names
+cron.schedule('*/30 * * * 1-5', async () => {
+  try {
+    console.log('foo a cada 30 min');
+    console.log(manager);
+  } catch (error) {
+    console.error(error);
+  }
+});
 
 /**
  * Initialization stuff

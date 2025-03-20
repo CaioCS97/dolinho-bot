@@ -71,36 +71,32 @@ export function createThrottle<T extends (...args: unknown[]) => void>(
   };
 }
 
-/**
- * Converts a string containing numbers into their respective emoji representations.
- *
- * @param {string} input - The string containing numbers to convert.
- * @returns {string} - The string with numbers converted to emojis.
- *
- * @example
- * ```typescript
- * const emojiString = convertNumbersToEmojis("123.45,67");
- * console.log(emojiString); // "1️⃣2️⃣3️⃣.4️⃣5️⃣,6️⃣7️⃣"
- * ```
- */
-export function convertNumbersToEmojis(input: string): string {
-  const numberToEmoji: { [key: string]: string } = {
-    '0': '0️⃣',
-    '1': '1️⃣',
-    '2': '2️⃣',
-    '3': '3️⃣',
-    '4': '4️⃣',
-    '5': '5️⃣',
-    '6': '6️⃣',
-    '7': '7️⃣',
-    '8': '8️⃣',
-    '9': '9️⃣',
-    '.': '🔹',
-    ',': '🔹',
-  };
+export async function hasThrown<K>(method: () => Promise<K>): Promise<boolean> {
+  try {
+    await method();
+    return false;
+  } catch {
+    return true;
+  }
+}
 
-  return input
-    .split('')
-    .map((char) => numberToEmoji[char] || char)
-    .join('');
+export function getDirectionSymbol(direction: 'up' | 'stable' | 'down') {
+  switch (direction) {
+    case 'up':
+      return '▲';
+
+    case 'stable':
+      return '';
+
+    case 'down':
+      return '▼';
+  }
+}
+
+export function createChannelName(
+  name: string,
+  quotation: string,
+  direction: 'up' | 'stable' | 'down'
+) {
+  return `${name}・${quotation}・${getDirectionSymbol(direction)}`;
 }

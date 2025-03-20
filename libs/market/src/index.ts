@@ -1,82 +1,47 @@
-import EventEmitter from 'node:events';
-import { createThrottle } from '@dolinho/utils';
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const { Client }: any = require('@mathieuc/tradingview');
 
-export enum Symbols {
-  USDBRL = 'FX_IDC:USDBRL',
+export class Symbols {
+  #supported = new Map<string, string>();
+
+  constructor() {
+    this.#supported.set('USDBRL', 'FX_IDC:USDBRL');
+    this.#supported.set('PETR4', 'BMFBOVESPA:PETR4');
+  }
+
+  has(name: string | null) {
+    return name ? this.#supported.has(name) : null;
+  }
+
+  get(name: string) {
+    return this.#supported.get(name);
+  }
+
+  keys() {
+    return [...this.#supported.keys()];
+  }
+
+  values() {
+    return [...this.#supported.values()];
+  }
+
+  entries() {
+    return [...this.#supported.entries()];
+  }
 }
 
-export enum Events {
-  Update = 'update',
-}
-
-interface InternalMarketEventsEmmiters {
-  [Events.Update]: {
-    close: number;
-  };
-}
-
-type InternalMarketEventsHandlers = {
-  [K in keyof InternalMarketEventsEmmiters]: (
-    payload: InternalMarketEventsEmmiters[K]
-  ) => void;
-};
-
-export class Market extends EventEmitter {
+export class Market {
   #chart;
 
-  public constructor(symbol: Symbols, interval = 10000) {
-    super();
-
+  public constructor(symbol: string) {
     const { Session } = new Client();
     const { Chart } = Session;
 
     this.#chart = new Chart();
 
-    // Only update in certain intervals
-    const update = createThrottle(() => {
-      if (!this.#chart.periods[0]) return;
-
-      const close = this.#chart.periods[0].close;
-
-      this.emit(Events.Update, { close });
-    }, interval);
-
     this.#chart.setMarket(symbol, {
       timeframe: 'D',
     });
-
-    this.#chart.onUpdate(() => update());
-  }
-
-  /**
-   * Registers an event listener for the specified event.
-   *
-   * @param event - The name of the event to listen for.
-   * @param listener - The callback function that will be invoked when the event is emitted.
-   * @returns The current instance for method chaining.
-   */
-  public override on<K extends keyof InternalMarketEventsHandlers>(
-    event: K,
-    listener: InternalMarketEventsHandlers[K]
-  ): this {
-    return super.on(event, listener);
-  }
-
-  /**
-   * Emits an event of type `K` with the given `payload`.
-   *
-   * @template K - The type of the event key.
-   * @param event - The event key to emit.
-   * @param payload - The payload associated with the event.
-   * @returns `true` if the event had listeners, `false` otherwise.
-   */
-  public override emit<K extends keyof InternalMarketEventsEmmiters>(
-    event: K,
-    payload: InternalMarketEventsEmmiters[K]
-  ): boolean {
-    return super.emit(event, payload);
   }
 
   /**
@@ -84,9 +49,51 @@ export class Market extends EventEmitter {
    *
    * @returns {number | null} The latest closing rate if available, otherwise null.
    */
-  public getLatestRate() {
+  public getLatestPeriod() {
     if (!this.#chart.periods?.length) return null;
 
-    return this.#chart.periods[0].close;
+    return this.#chart.periods[0];
+  }
+}
+
+export class MarketManager {
+  #markets = new Map<string, Market>();
+
+  constructor(symbols?: Array<string>) {
+    if (symbols) {
+      for (const symbol of symbols) this.add(symbol);
+    }
+  }
+
+  /**
+   * Checks if the specified market exists in the collection.
+   *
+   * @param market - The name of the market to check for existence.
+   * @returns A boolean indicating whether the market exists in the collection.
+   */
+  has(market: string) {
+    return this.#markets.has(market);
+  }
+
+  /**
+   * Retrieves the market data for the specified market.
+   * If the market does not exist in the collection, it will be added.
+   *
+   * @param market - The name of the market to retrieve.
+   * @returns The market data associated with the specified market.
+   */
+  get(market: string) {
+    if (!this.#markets.has(market)) this.add(market);
+
+    return this.#markets.get(market);
+  }
+
+  /**
+   * Adds a new market to the collection.
+   *
+   * @param market - The name of the market to add.
+   */
+  add(market: string) {
+    this.#markets.set(market, new Market(market));
   }
 }

@@ -11,6 +11,7 @@ import {
   MessageComponentInteraction,
   ModalSubmitInteraction,
   SlashCommandBuilder,
+  SlashCommandOptionsOnlyBuilder,
   SlashCommandSubcommandsOnlyBuilder,
 } from 'discord.js';
 
@@ -31,6 +32,8 @@ type SlashCommandInitialization = (
 ) => Promise<
   | Omit<SlashCommandBuilder, 'addSubcommandGroup' | 'addSubcommand'>
   | SlashCommandSubcommandsOnlyBuilder
+  | SlashCommandOptionsOnlyBuilder
+  | SlashCommandBuilder
 >;
 
 export class Slash {
