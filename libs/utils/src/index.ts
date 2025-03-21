@@ -103,13 +103,14 @@ export function getDirectionSymbol(value: number | null) {
 export function createChannelName(
   name: string,
   quotation: number,
-  delta: number | null
+  delta: number | null,
+  decimalPlaces = 2
 ) {
   return [
     name,
-    formatStringForDiscordTitles(quotation.toString()),
-    formatStringForDiscordTitles(getDirectionSymbol(delta)),
+    `${quotation.toFixed(decimalPlaces)}${getDirectionSymbol(delta)}`,
   ]
+    .map(formatStringForDiscordTitles)
     .filter(Boolean)
     .join('・');
 }

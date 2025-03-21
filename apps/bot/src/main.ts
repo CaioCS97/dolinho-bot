@@ -273,7 +273,7 @@ cron.schedule('0 0 18 * * 1-5', async () => {
 });
 
 // every 30 minutes, update all channel names
-cron.schedule('*/1 * * * 1-5', async () => {
+cron.schedule('*/15 * * * 1-5', async () => {
   try {
     const markets = manager.markets();
 
