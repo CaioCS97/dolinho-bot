@@ -89,9 +89,6 @@ export function getDirectionSymbol(value: number | null) {
     case value && value > 0:
       return `▲`;
 
-    case !value || value === 0:
-      return '';
-
     case value && value < 0:
       return `▼`;
 

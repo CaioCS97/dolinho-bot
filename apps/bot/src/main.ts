@@ -30,11 +30,6 @@ assert(
 );
 
 assert(
-  process.env.OPEN_EXCHANGE_API_KEY,
-  'process.env.OPEN_EXCHANGE_API_KEY is required to run the BOT'
-);
-
-assert(
   process.env.SUPABASE_URL,
   'process.env.SUPABASE_URL is required to run the BOT'
 );
