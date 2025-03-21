@@ -148,8 +148,6 @@ slash.command(
       .setName('usd')
       .setDescription('Informa a cotação atual do dolar'),
   async (interaction) => {
-    console.log('asdasd');
-
     if (!interaction.isRepliable()) return;
 
     await interaction.reply({
