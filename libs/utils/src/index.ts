@@ -80,23 +80,36 @@ export async function hasThrown<K>(method: () => Promise<K>): Promise<boolean> {
   }
 }
 
-export function getDirectionSymbol(direction: 'up' | 'stable' | 'down') {
-  switch (direction) {
-    case 'up':
-      return '▲';
+export function formatStringForDiscordTitles(str: string) {
+  return str.replaceAll('.', '․');
+}
 
-    case 'stable':
+export function getDirectionSymbol(value: number | null) {
+  switch (true) {
+    case value && value > 0:
+      return `▲`;
+
+    case !value || value === 0:
       return '';
 
-    case 'down':
-      return '▼';
+    case value && value < 0:
+      return `▼`;
+
+    default:
+      return '';
   }
 }
 
 export function createChannelName(
   name: string,
-  quotation: string,
-  direction: 'up' | 'stable' | 'down'
+  quotation: number,
+  delta: number | null
 ) {
-  return `${name}・${quotation}・${getDirectionSymbol(direction)}`;
+  return [
+    name,
+    formatStringForDiscordTitles(quotation.toString()),
+    formatStringForDiscordTitles(getDirectionSymbol(delta)),
+  ]
+    .filter(Boolean)
+    .join('・');
 }

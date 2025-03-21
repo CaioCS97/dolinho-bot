@@ -36,6 +36,7 @@ export type Database = {
           created_at: string
           guild_id: string
           id: number
+          latest_period_close: number | null
           symbol: string
         }
         Insert: {
@@ -43,6 +44,7 @@ export type Database = {
           created_at?: string
           guild_id: string
           id?: number
+          latest_period_close?: number | null
           symbol: string
         }
         Update: {
@@ -50,6 +52,7 @@ export type Database = {
           created_at?: string
           guild_id?: string
           id?: number
+          latest_period_close?: number | null
           symbol?: string
         }
         Relationships: [

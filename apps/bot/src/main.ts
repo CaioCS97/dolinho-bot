@@ -94,28 +94,6 @@ client.on(Events.GuildDelete, async (guild): Promise<void> => {
   console.log(`${guild.name} uninstalled Dolinho`);
 });
 
-// usd.on(MarketEvents.Update, async ({ close }) => {
-//   const { data, error } = await supa
-//     .from('discord_channels')
-//     .select()
-//     .eq('channel_currency', 'USD');
-
-//   if (error) return console.log(error);
-
-//   console.log('updating channels!');
-
-//   for (const { channel_id } of data) {
-//     try {
-//       await api.channels.edit(channel_id, {
-//         name: 'usd・' + close.toString().replaceAll('.', '․') + '▲▼',
-//         topic: `Current quotation: US$ ${close.toString()}`,
-//       });
-//     } catch (error) {
-//       console.log(error);
-//     }
-//   }
-// });
-
 client.on(Events.GuildAvailable, async (guild): Promise<void> => {
   const guilds = await supa.from('guilds').select().eq('id', guild.id);
   const instance = guilds.data?.[0];
@@ -239,8 +217,12 @@ slash.command(
 
     const [{ category_channel_id }] = guilds.data;
 
+    const market = manager.get(tradingViewSymbol);
+    const period = market?.getLatestPeriod();
+    const close = period?.close || 0;
+
     const channel = await interaction.guild.channels.create({
-      name: createChannelName(symbol, 'foo', 'stable'),
+      name: createChannelName(symbol, close, null),
       parent: category_channel_id,
     });
 
@@ -291,12 +273,56 @@ cron.schedule('0 0 18 * * 1-5', async () => {
 });
 
 // every 30 minutes, update all channel names
-cron.schedule('*/30 * * * 1-5', async () => {
+cron.schedule('*/1 * * * 1-5', async () => {
   try {
-    console.log('foo a cada 30 min');
-    console.log(manager);
+    const markets = manager.markets();
+
+    const channels = await supa
+      .from('symbols')
+      .select('*')
+      .in(
+        'symbol',
+        markets.map((market) => market[0])
+      );
+
+    assert(channels.data);
+
+    for (const channel of channels.data) {
+      console.log(`Updating channel ${channel.channel_id} ${channel.symbol}`);
+
+      const market = manager.get(channel.symbol);
+
+      if (!market) continue;
+
+      const period = market.getLatestPeriod();
+
+      if (!period) continue;
+
+      const symbol = symbols.get(channel.symbol, 'ba');
+
+      if (!symbol) continue;
+
+      const delta = channel.latest_period_close
+        ? period.close - channel.latest_period_close
+        : null;
+
+      await supa
+        .from('symbols')
+        .update({
+          latest_period_close: period.close,
+        })
+        .eq('id', channel.id);
+
+      console.log('updated supa');
+
+      await api.channels.edit(channel.channel_id, {
+        name: createChannelName(symbol, period.close, delta),
+      });
+
+      console.log('updated channel');
+    }
   } catch (error) {
-    console.error(error);
+    console.log(error);
   }
 });
 
