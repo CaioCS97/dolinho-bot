@@ -2,11 +2,11 @@ import assert from 'assert';
 import cron from 'node-cron';
 
 import {
-  ChannelType,
+  // ChannelType,
   Client,
   Events,
   GatewayIntentBits,
-  MessageFlags,
+  // MessageFlags,
   Partials,
   SlashCommandBuilder,
 } from 'discord.js';
@@ -15,11 +15,12 @@ import { REST } from '@discordjs/rest';
 import { API } from '@discordjs/core';
 
 import { Slash } from '@dolinho/slash';
-import { Database } from '@dolinho/types';
-import { createChannelName, hasThrown } from '@dolinho/utils';
+// import { TradingView } from '@dolinho/trading-view';
+// import { Database } from '@dolinho/types';
+// import { createChannelName, hasThrown } from '@dolinho/utils';
 
-import { createClient } from '@supabase/supabase-js';
-import { MarketManager, Symbols } from '@dolinho/market';
+// import { createClient } from '@supabase/supabase-js';
+// import { MarketManager, Symbols } from '@dolinho/market';
 
 /**
  * Assertions
@@ -57,15 +58,7 @@ const client = new Client({
   },
 });
 
-const supa = createClient<Database>(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
-
 const slash = new Slash(client);
-
-const symbols = new Symbols();
-const manager = new MarketManager(symbols.values());
 
 /**
  * Client
@@ -81,62 +74,56 @@ client.on(Events.Error, (error) => {
 
 // TODO: improve metrics
 client.on(Events.GuildCreate, async (guild): Promise<void> => {
-  console.log(`${guild.name} installed Dolinho`);
+  console.log(`${guild.name} installed Dolinho! :)`);
 });
 
 // TODO: improve metrics
 client.on(Events.GuildDelete, async (guild): Promise<void> => {
-  console.log(`${guild.name} uninstalled Dolinho`);
+  console.log(`${guild.name} uninstalled Dolinho! :(`);
 });
 
 client.on(Events.GuildAvailable, async (guild): Promise<void> => {
-  const guilds = await supa.from('guilds').select().eq('id', guild.id);
-  const instance = guilds.data?.[0];
-
-  // Should create the channel and insert the guild into the DB
-  if (!instance) {
-    // Create the channel
-    const category = await guild.channels.create({
-      name: 'Dolinho',
-      type: ChannelType.GuildCategory,
-    });
-
-    // Insert into the DB
-    const insert = await supa.from('guilds').insert({
-      id: guild.id,
-      name: guild.name,
-      category_channel_id: category.id,
-    });
-
-    if (insert.error) {
-      throw new Error('could not insert the data into the table');
-    }
-  } else {
-    const categoryDoesNotExists = await hasThrown(() =>
-      api.channels.get(instance.category_channel_id)
-    );
-
-    // Initialize the category channel if it doesnt exists or was deleted
-    if (categoryDoesNotExists) {
-      const category = await guild.channels.create({
-        name: 'Dolinho',
-        type: ChannelType.GuildCategory,
-      });
-
-      // Insert into the DB
-      const update = await supa
-        .from('guilds')
-        .update({
-          id: guild.id,
-          category_channel_id: category.id,
-        })
-        .eq('id', guild.id);
-
-      if (update.error) {
-        throw new Error(update.error.message);
-      }
-    }
-  }
+  // const guilds = await supa.from('guilds').select().eq('id', guild.id);
+  // const instance = guilds.data?.[0];
+  // // Should create the channel and insert the guild into the DB
+  // if (!instance) {
+  //   // Create the channel
+  //   const category = await guild.channels.create({
+  //     name: 'Dolinho',
+  //     type: ChannelType.GuildCategory,
+  //   });
+  //   // Insert into the DB
+  //   const insert = await supa.from('guilds').insert({
+  //     id: guild.id,
+  //     name: guild.name,
+  //     category_channel_id: category.id,
+  //   });
+  //   if (insert.error) {
+  //     throw new Error('could not insert the data into the table');
+  //   }
+  // } else {
+  //   const categoryDoesNotExists = await hasThrown(() =>
+  //     api.channels.get(instance.category_channel_id)
+  //   );
+  //   // Initialize the category channel if it doesnt exists or was deleted
+  //   if (categoryDoesNotExists) {
+  //     const category = await guild.channels.create({
+  //       name: 'Dolinho',
+  //       type: ChannelType.GuildCategory,
+  //     });
+  //     // Insert into the DB
+  //     const update = await supa
+  //       .from('guilds')
+  //       .update({
+  //         id: guild.id,
+  //         category_channel_id: category.id,
+  //       })
+  //       .eq('id', guild.id);
+  //     if (update.error) {
+  //       throw new Error(update.error.message);
+  //     }
+  //   }
+  // }
 });
 
 /**
@@ -166,12 +153,6 @@ slash.command(
         option
           .setName('symbol')
           .setDescription('Selecione o simbolo a ser adicionado a sua guild')
-          .setChoices(
-            ...symbols.keys().map((name) => ({
-              name: name,
-              value: name,
-            }))
-          )
           .setRequired(true)
       ),
   async (interaction) => {
@@ -179,60 +160,60 @@ slash.command(
     assert(interaction.isRepliable());
     assert(interaction.isChatInputCommand());
 
-    const symbol = interaction.options.get('symbol')?.value as string | null;
+    // const symbol = interaction.options.get('symbol')?.value as string | null;
 
-    if (!symbol) {
-      await interaction.reply({
-        content: `ERROR: Symbol was not provided!`,
-        flags: MessageFlags.Ephemeral,
-      });
+    // if (!symbol) {
+    //   await interaction.reply({
+    //     content: `ERROR: Symbol was not provided!`,
+    //     flags: MessageFlags.Ephemeral,
+    //   });
 
-      return;
-    }
+    //   return;
+    // }
 
-    const tradingViewSymbol = symbols.get(symbol);
+    // const tradingViewSymbol = symbols.get(symbol);
 
-    if (!tradingViewSymbol) {
-      await interaction.reply({
-        content: `ERROR: Symbol is not supported!`,
-        flags: MessageFlags.Ephemeral,
-      });
+    // if (!tradingViewSymbol) {
+    //   await interaction.reply({
+    //     content: `ERROR: Symbol is not supported!`,
+    //     flags: MessageFlags.Ephemeral,
+    //   });
 
-      return;
-    }
+    //   return;
+    // }
 
-    const guilds = await supa
-      .from('guilds')
-      .select()
-      .eq('id', interaction.guild.id);
+    // const guilds = await supa
+    //   .from('guilds')
+    //   .select()
+    //   .eq('id', interaction.guild.id);
 
-    assert(guilds.data);
+    // assert(guilds.data);
 
-    const [{ category_channel_id }] = guilds.data;
+    // const [{ category_channel_id }] = guilds.data;
 
-    const market = manager.get(tradingViewSymbol);
-    const period = market?.getLatestPeriod();
-    const close = period?.close || 0;
+    // const market = manager.get(tradingViewSymbol);
+    // const period = market?.getLatestPeriod();
+    // const close = period?.close || 0;
 
-    const channel = await interaction.guild.channels.create({
-      name: createChannelName(symbol, close, null),
-      parent: category_channel_id,
-    });
+    // const channel = await interaction.guild.channels.create({
+    //   name: createChannelName(symbol, close, null),
+    //   parent: category_channel_id,
+    // });
 
-    const insert = await supa.from('symbols').insert({
-      guild_id: interaction.guild.id,
-      channel_id: channel.id,
-      symbol: tradingViewSymbol,
-    });
+    // const insert = await supa.from('symbols').insert({
+    //   guild_id: interaction.guild.id,
+    //   channel_id: channel.id,
+    //   symbol: tradingViewSymbol,
+    // });
 
-    if (insert.error) {
-      throw new Error(insert.error.message);
-    }
+    // if (insert.error) {
+    //   throw new Error(insert.error.message);
+    // }
 
-    await interaction.reply({
-      content: `Symbolo added successfully!`,
-      flags: MessageFlags.Ephemeral,
-    });
+    // await interaction.reply({
+    //   content: `Symbolo added successfully!`,
+    //   flags: MessageFlags.Ephemeral,
+    // });
   }
 );
 
@@ -268,52 +249,38 @@ cron.schedule('0 0 18 * * 1-5', async () => {
 // every 30 minutes, update all channel names
 cron.schedule('*/15 * * * 1-5', async () => {
   try {
-    const markets = manager.markets();
-
-    const channels = await supa
-      .from('symbols')
-      .select('*')
-      .in(
-        'symbol',
-        markets.map((market) => market[0])
-      );
-
-    assert(channels.data);
-
-    for (const channel of channels.data) {
-      console.log(`Updating channel ${channel.channel_id} ${channel.symbol}`);
-
-      const market = manager.get(channel.symbol);
-
-      if (!market) continue;
-
-      const period = market.getLatestPeriod();
-
-      if (!period) continue;
-
-      const symbol = symbols.get(channel.symbol, 'ba');
-
-      if (!symbol) continue;
-
-      const delta = channel.latest_period_close
-        ? period.close - channel.latest_period_close
-        : null;
-
-      await supa
-        .from('symbols')
-        .update({
-          latest_period_close: period.close,
-        })
-        .eq('id', channel.id);
-
-      console.log('updated supa');
-
-      await api.channels.edit(channel.channel_id, {
-        name: createChannelName(symbol, period.close, delta),
-      });
-
-      console.log('updated channel');
-    }
+    // const markets = manager.markets();
+    // const channels = await supa
+    //   .from('symbols')
+    //   .select('*')
+    //   .in(
+    //     'symbol',
+    //     markets.map((market) => market[0])
+    //   );
+    // assert(channels.data);
+    // for (const channel of channels.data) {
+    //   console.log(`Updating channel ${channel.channel_id} ${channel.symbol}`);
+    //   const market = manager.get(channel.symbol);
+    //   if (!market) continue;
+    //   const period = market.getLatestPeriod();
+    //   if (!period) continue;
+    //   const symbol = symbols.get(channel.symbol, 'ba');
+    //   if (!symbol) continue;
+    //   const delta = channel.latest_period_close
+    //     ? period.close - channel.latest_period_close
+    //     : null;
+    //   await supa
+    //     .from('symbols')
+    //     .update({
+    //       latest_period_close: period.close,
+    //     })
+    //     .eq('id', channel.id);
+    //   console.log('updated supa');
+    //   await api.channels.edit(channel.channel_id, {
+    //     name: createChannelName(symbol, period.close, delta),
+    //   });
+    //   console.log('updated channel');
+    // }
   } catch (error) {
     console.log(error);
   }

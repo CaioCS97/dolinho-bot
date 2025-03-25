@@ -17,6 +17,9 @@
     },
     {
       "path": "./libs/utils"
+    },
+    {
+      "path": "./libs/tradig-view"
     }
   ]
 }
