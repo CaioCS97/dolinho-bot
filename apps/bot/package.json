@@ -6,7 +6,8 @@
     "@dolinho/slash": "*",
     "@dolinho/market": "*",
     "@dolinho/types": "*",
-    "@dolinho/utils": "*"
+    "@dolinho/utils": "*",
+    "@dolinho/trading-view": "*"
   },
   "nx": {
     "name": "bot",

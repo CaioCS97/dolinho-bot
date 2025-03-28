@@ -20,6 +20,9 @@
     },
     {
       "path": "./libs/tradig-view"
+    },
+    {
+      "path": "./libs/database"
     }
   ]
 }

@@ -19,6 +19,9 @@
   ],
   "references": [
     {
+      "path": "../../libs/tradig-view/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/utils/tsconfig.lib.json"
     },
     {

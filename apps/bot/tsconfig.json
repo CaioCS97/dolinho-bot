@@ -4,6 +4,9 @@
   "include": [],
   "references": [
     {
+      "path": "../../libs/tradig-view"
+    },
+    {
       "path": "../../libs/utils"
     },
     {

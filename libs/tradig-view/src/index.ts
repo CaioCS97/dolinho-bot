@@ -1,4 +1,4 @@
-import { request } from 'undici';
+import { request, Dispatcher } from 'undici';
 
 interface Fields {
   name: string;
@@ -15,21 +15,57 @@ interface Fields {
   update_mode: string;
 }
 
-export class TradingView {
-  static symbol = async <T extends keyof Fields>(
-    symbol: string,
-    fields: Array<T>
-  ) => {
-    const response = await request(`https://scanner.tradingview.com/symbol`, {
-      method: 'GET',
-      query: {
-        symbol,
-        fields: fields.join(','),
-      },
-    });
+type ResponseDataBody = Dispatcher.ResponseData['body'];
 
-    const data = await response.body.json();
-
-    return data as Pick<Fields, T>;
-  };
+interface GenericBodyData<K> extends ResponseDataBody {
+  json(): Promise<K>;
 }
+
+interface GenericTypedResponse<K> extends Dispatcher.ResponseData {
+  body: GenericBodyData<K>;
+}
+
+export const symbol = async <T extends keyof Fields>(
+  symbol: string,
+  fields: Array<T> = []
+) => {
+  const defaults = [
+    'name',
+    'description',
+    'type',
+    'logoid',
+    'close',
+    'open',
+    'high',
+    'low',
+    'change',
+  ];
+
+  const response = await request(`https://scanner.tradingview.com/symbol`, {
+    method: 'GET',
+    query: {
+      symbol,
+      fields: [...fields, ...defaults].join(','),
+    },
+  });
+
+  return response as GenericTypedResponse<
+    Pick<Fields, T> &
+      Pick<
+        Fields,
+        | 'name'
+        | 'description'
+        | 'type'
+        | 'logoid'
+        | 'close'
+        | 'open'
+        | 'high'
+        | 'low'
+        | 'change'
+      >
+  >;
+};
+
+export const logo = async (logo: string, size: 'small' | 'big' = 'big') => {
+  return `https://s3-symbol-logo.tradingview.com/${logo}--${size}.svg`;
+};
