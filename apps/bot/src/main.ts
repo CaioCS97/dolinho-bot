@@ -6,6 +6,7 @@ import {
   Client,
   Events,
   GatewayIntentBits,
+  MessageFlags,
   // MessageFlags,
   Partials,
   SlashCommandBuilder,
@@ -18,7 +19,7 @@ import { Slash } from '@dolinho/slash';
 import { Discord } from '@dolinho/utils';
 import * as TradingView from '@dolinho/trading-view';
 
-import { PrismaClient } from '@prisma/client';
+import { Channel, PrismaClient } from '@prisma/client';
 
 /**
  * Assertions
@@ -76,8 +77,6 @@ client.on(Events.GuildCreate, async (guild): Promise<void> => {
     name: 'Dolinho',
     type: ChannelType.GuildCategory,
   });
-
-  console.log('foo');
 
   await prisma.guild.create({
     data: {
@@ -212,12 +211,12 @@ slash.command(
         AddCommandErrors.NotChatInputCommand
       );
 
+      // Target symbol
       const target = interaction.options
         .get('symbol', true)
         .value?.toString()
         .toUpperCase() as string;
 
-      // BMFBOVESPA:PETR4
       const respone = await TradingView.symbol(target);
 
       // This checks if the symbol exists or not
@@ -265,8 +264,6 @@ slash.command(
 
       assert(guild, AddCommandErrors.GuildRegistryNotFound);
 
-      console.log(guild?.channels);
-
       for (const channel of guild.channels) {
         assert(
           channel.symbol.id !== symbol.id,
@@ -306,8 +303,8 @@ slash.command(
             `${symbol.name} adicionado com sucesso!`,
             'O símbolo foi adicionado com sucesso e agora pode ser monitorado na Guilda!'
           ),
-          Discord.createSymbolEmbed(symbol),
         ],
+        flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
       if (error instanceof AssertionError && interaction.isRepliable()) {
@@ -320,6 +317,7 @@ slash.command(
                   'O símbolo fornecido não foi encontrado ou não é suportado pelo Trading View. Verifique se o símbolo está correto e tente novamente.'
                 ),
               ],
+              flags: MessageFlags.Ephemeral,
             });
             break;
 
@@ -342,6 +340,7 @@ slash.command(
                   'Não conseguimos adicionar seu simbolo... tente novamente mais tarde.'
                 ),
               ],
+              flags: MessageFlags.Ephemeral,
             });
             break;
         }

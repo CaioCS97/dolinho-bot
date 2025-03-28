@@ -49,7 +49,7 @@ export function createChannelName(
     .join('・');
 }
 
-export function createSymbolEmbed(symbol: Symbol) {
+export function createSymbolReportEmbed(symbol: Symbol) {
   const fixedChange = symbol.change.toFixed(2);
   const directionSymbol = getDirectionSymbol(symbol.change);
   const closeText = `$${symbol.close} (${fixedChange}) ${directionSymbol}`;
@@ -58,10 +58,7 @@ export function createSymbolEmbed(symbol: Symbol) {
     .setColor(Colors.Green)
     .setAuthor({
       name: `${symbol.name}・${closeText}`,
-      iconURL: symbol.logo.length
-        ? `https://s3-symbol-logo.tradingview.com/${symbol.logo}.svg`
-        : undefined,
-      url: `https://br.tradingview.com/symbols/${symbol.id}/`,
+      url: `https://www.tradingview.com/symbols/${symbol.id}/`,
     })
     .setDescription(symbol.description)
     .setFields(
