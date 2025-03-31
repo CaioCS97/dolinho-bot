@@ -155,6 +155,14 @@ client.on(Events.GuildAvailable, async (guild): Promise<void> => {
 client.on(Events.ChannelDelete, async (channel) => {
   console.log(`channel deleted: ${channel.id}`);
 
+  const entry = await prisma.channel.findUnique({
+    where: {
+      id: channel.id,
+    },
+  });
+
+  if (!entry) return;
+
   await prisma.channel.delete({
     where: {
       id: channel.id,
