@@ -10,7 +10,7 @@ const swcJestConfig = JSON.parse(
 swcJestConfig.swcrc = false;
 
 export default {
-  displayName: '@dolinho/market',
+  displayName: '@dolinho/trading-view',
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
   transform: {

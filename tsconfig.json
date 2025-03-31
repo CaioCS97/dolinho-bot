@@ -10,13 +10,13 @@
       "path": "./libs/slash"
     },
     {
-      "path": "./libs/types"
-    },
-    {
-      "path": "./libs/market"
-    },
-    {
       "path": "./libs/utils"
+    },
+    {
+      "path": "./libs/tradig-view"
+    },
+    {
+      "path": "./libs/database"
     }
   ]
 }

@@ -1,3 +1,5 @@
+export * as Discord from './discord';
+
 /**
  * Creates a debounced function that delays invoking the provided function until after the specified wait time has elapsed
  * since the last time the debounced function was invoked.
@@ -78,36 +80,4 @@ export async function hasThrown<K>(method: () => Promise<K>): Promise<boolean> {
   } catch {
     return true;
   }
-}
-
-export function formatStringForDiscordTitles(str: string) {
-  return str.replaceAll('.', '․');
-}
-
-export function getDirectionSymbol(value: number | null) {
-  switch (true) {
-    case value && value > 0:
-      return `▲`;
-
-    case value && value < 0:
-      return `▼`;
-
-    default:
-      return '';
-  }
-}
-
-export function createChannelName(
-  name: string,
-  quotation: number,
-  delta: number | null,
-  decimalPlaces = 2
-) {
-  return [
-    name,
-    `${quotation.toFixed(decimalPlaces)}${getDirectionSymbol(delta)}`,
-  ]
-    .map(formatStringForDiscordTitles)
-    .filter(Boolean)
-    .join('・');
 }
