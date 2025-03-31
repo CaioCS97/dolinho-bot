@@ -15,7 +15,7 @@ import {
 import { REST } from '@discordjs/rest';
 import { API } from '@discordjs/core';
 
-import { Slash } from '@dolinho/slash';
+import { Slasher } from '@dolinho/slash';
 import { Discord } from '@dolinho/utils';
 import * as TradingView from '@dolinho/trading-view';
 
@@ -51,7 +51,7 @@ const client = new Client({
   },
 });
 
-const slash = new Slash(client);
+const slash = new Slasher(client);
 
 const prisma = new PrismaClient();
 
@@ -163,26 +163,7 @@ client.on(Events.ChannelUpdate, async (channel) => {
 /**
  * Command Stuff
  */
-slash.command(
-  async () => {
-    // TODO: pegar uma lista de todos os simbolos disponiveis na guilda e adicionar como opções;
-    // TODO: adicionar uma maneira de resetar comandos especificos para certas guildas para que essa lista seja atualizada
-    // toda vez que o comando de `add` for executado;
-    return new SlashCommandBuilder()
-      .setName('usd')
-      .setDescription('Informa a cotação atual do dolar');
-  },
-  async (interaction) => {
-    if (!interaction.isRepliable()) return;
-
-    await interaction.reply({
-      content: `A cotação atual do dolar é de: $ 6.66 trumps`,
-      ephemeral: true,
-    });
-  }
-);
-
-enum AddCommandErrors {
+enum CommandErrors {
   GuildNotDefined = 'guild_not_defined',
   MessageNotRepliable = 'message_not_repliable',
   NotChatInputCommand = 'not_chat_input_command',
@@ -204,11 +185,11 @@ slash.command(
       ),
   async (interaction) => {
     try {
-      assert(interaction.guild, AddCommandErrors.GuildNotDefined);
-      assert(interaction.isRepliable(), AddCommandErrors.MessageNotRepliable);
+      assert(interaction.guild, CommandErrors.GuildNotDefined);
+      assert(interaction.isRepliable(), CommandErrors.MessageNotRepliable);
       assert(
         interaction.isChatInputCommand(),
-        AddCommandErrors.NotChatInputCommand
+        CommandErrors.NotChatInputCommand
       );
 
       // Target symbol
@@ -220,7 +201,7 @@ slash.command(
       const respone = await TradingView.symbol(target);
 
       // This checks if the symbol exists or not
-      assert(respone.statusCode === 200, AddCommandErrors.SymbolDoesNotExist);
+      assert(respone.statusCode === 200, CommandErrors.SymbolDoesNotExist);
 
       const {
         open,
@@ -273,12 +254,12 @@ slash.command(
         },
       });
 
-      assert(guild, AddCommandErrors.GuildRegistryNotFound);
+      assert(guild, CommandErrors.GuildRegistryNotFound);
 
       for (const channel of guild.channels) {
         assert(
           channel.symbol.id !== symbol.id,
-          AddCommandErrors.GuildAlreadyObserveSymbol
+          CommandErrors.GuildAlreadyObserveSymbol
         );
       }
 
@@ -312,10 +293,13 @@ slash.command(
         ],
         flags: MessageFlags.Ephemeral,
       });
+
+      // This ensures the command `/current` have a list of updated symbols;
+      await slash.resetCommandOnGuild('/view', interaction.guild);
     } catch (error) {
       if (error instanceof AssertionError && interaction.isRepliable()) {
         switch (error.message) {
-          case AddCommandErrors.SymbolDoesNotExist:
+          case CommandErrors.SymbolDoesNotExist:
             await interaction.reply({
               embeds: [
                 Discord.createErrorEmbed(
@@ -327,7 +311,7 @@ slash.command(
             });
             break;
 
-          case AddCommandErrors.GuildAlreadyObserveSymbol:
+          case CommandErrors.GuildAlreadyObserveSymbol:
             await interaction.reply({
               embeds: [
                 Discord.createErrorEmbed(
@@ -345,6 +329,90 @@ slash.command(
                 Discord.createErrorEmbed(
                   'Opa... Parece que alguma coisa aconteceu.',
                   'Não conseguimos adicionar seu simbolo... tente novamente mais tarde.'
+                ),
+              ],
+              flags: MessageFlags.Ephemeral,
+            });
+            break;
+        }
+      }
+    }
+  }
+);
+
+slash.command(
+  async (guild) => {
+    const channels = await prisma.channel.findMany({
+      where: {
+        guildId: guild.id,
+      },
+      include: {
+        symbol: true,
+      },
+    });
+
+    return new SlashCommandBuilder()
+      .setName('view')
+      .setDescription('View the data related to the Symbol')
+      .addStringOption((option) =>
+        option
+          .setName('symbol')
+          .setDescription('The symbol used to return the data')
+          .addChoices(
+            ...channels.map((channel) => ({
+              name: channel.symbol.name,
+              value: channel.symbol.id,
+            }))
+          )
+          .setRequired(true)
+      );
+  },
+  async (interaction) => {
+    try {
+      assert(interaction.guild, CommandErrors.GuildNotDefined);
+      assert(interaction.isRepliable(), CommandErrors.MessageNotRepliable);
+      assert(
+        interaction.isChatInputCommand(),
+        CommandErrors.NotChatInputCommand
+      );
+
+      // Target symbol
+      const target = interaction.options
+        .get('symbol', true)
+        .value?.toString()
+        .toUpperCase() as string;
+
+      const respone = await TradingView.symbol(target);
+
+      // This checks if the symbol exists or not
+      assert(respone.statusCode === 200, CommandErrors.SymbolDoesNotExist);
+
+      const symbol = await respone.body.json();
+
+      await interaction.reply({
+        embeds: [Discord.createSymbolReportEmbed({ id: target, ...symbol })],
+      });
+    } catch (error) {
+      if (error instanceof AssertionError && interaction.isRepliable()) {
+        switch (error.message) {
+          case CommandErrors.SymbolDoesNotExist:
+            await interaction.reply({
+              embeds: [
+                Discord.createErrorEmbed(
+                  'Símbolo não encontrado ou não suportado!',
+                  'O símbolo fornecido não foi encontrado ou não é suportado pelo Trading View. Verifique se o símbolo está correto e tente novamente.'
+                ),
+              ],
+              flags: MessageFlags.Ephemeral,
+            });
+            break;
+
+          default:
+            await interaction.reply({
+              embeds: [
+                Discord.createErrorEmbed(
+                  'Opa... Parece que alguma coisa aconteceu.',
+                  'Não conseguimos verificar os valores do seu simbolo... tente novamente mais tarde.'
                 ),
               ],
               flags: MessageFlags.Ephemeral,
@@ -377,11 +445,10 @@ cron.schedule('0 0 18 * * 1-5', async () => {
   }
 });
 
-// every 5 minutes, update all symbols
-cron.schedule('*/5 * * * 1-5', async () => {
-  const label = 'updating symbols!';
-  console.time(label);
+// every 30 minutes, update all channel names
+cron.schedule('*/15 * * * 1-5', async () => {
   try {
+    // Update symbols data
     const symbols = await prisma.symbol.findMany();
 
     for (const symbol of symbols) {
@@ -406,15 +473,8 @@ cron.schedule('*/5 * * * 1-5', async () => {
         },
       });
     }
-  } catch (error) {
-    console.log(error);
-  }
-  console.timeEnd(label);
-});
 
-// every 30 minutes, update all channel names
-cron.schedule('*/15 * * * 1-5', async () => {
-  try {
+    // Update channels data
     const channels = await prisma.channel.findMany({
       include: {
         symbol: true,

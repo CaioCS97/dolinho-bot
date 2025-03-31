@@ -53,13 +53,26 @@ export function createChannelName(symbol: Symbol) {
     .join('・');
 }
 
-export function createSymbolReportEmbed(symbol: Symbol) {
+export function createSymbolReportEmbed(
+  symbol: Pick<
+    Symbol,
+    | 'id'
+    | 'close'
+    | 'change'
+    | 'name'
+    | 'description'
+    | 'open'
+    | 'close'
+    | 'high'
+    | 'low'
+  >
+) {
   const { format } = new Intl.NumberFormat('en-US');
 
   const fixedClose = format(symbol.close);
   const fixedChange = format(symbol.change);
   const directionSymbol = getDirectionSymbol(symbol.change);
-  const closeText = `$${fixedClose}${directionSymbol}(${fixedChange})`;
+  const closeText = `$${fixedClose} ${directionSymbol} (${fixedChange})`;
 
   return new EmbedBuilder()
     .setColor(Colors.Green)
