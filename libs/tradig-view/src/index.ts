@@ -13,6 +13,7 @@ interface Fields {
   /** Unix timesamp */
   time: number;
   update_mode: string;
+  currency: string;
 }
 
 type ResponseDataBody = Dispatcher.ResponseData['body'];
@@ -29,7 +30,7 @@ export const symbol = async <T extends keyof Fields>(
   symbol: string,
   fields: Array<T> = []
 ) => {
-  const defaults = [
+  const defaults: Array<keyof Fields> = [
     'name',
     'description',
     'type',
@@ -39,6 +40,7 @@ export const symbol = async <T extends keyof Fields>(
     'high',
     'low',
     'change',
+    'currency',
   ];
 
   const response = await request(`https://scanner.tradingview.com/symbol`, {
@@ -50,19 +52,7 @@ export const symbol = async <T extends keyof Fields>(
   });
 
   return response as GenericTypedResponse<
-    Pick<Fields, T> &
-      Pick<
-        Fields,
-        | 'name'
-        | 'description'
-        | 'type'
-        | 'logoid'
-        | 'close'
-        | 'open'
-        | 'high'
-        | 'low'
-        | 'change'
-      >
+    Pick<Fields, T | (typeof defaults)[number]>
   >;
 };
 

@@ -18,7 +18,7 @@ export const discordChannelExist = async (
 };
 
 export function formatStringForDiscordTitles(str: string) {
-  return str.replaceAll('.', '․');
+  return str.replaceAll('.', '․').replaceAll(',', 'ˏ');
 }
 
 export function getDirectionSymbol(value: number | null) {
@@ -34,15 +34,12 @@ export function getDirectionSymbol(value: number | null) {
   }
 }
 
-export function createChannelName(
-  name: string,
-  quotation: number,
-  delta: number | null,
-  decimalPlaces = 2
-) {
+export function createChannelName(symbol: Symbol) {
+  const { format } = new Intl.NumberFormat('en-US');
+
   return [
-    name,
-    `${quotation.toFixed(decimalPlaces)}${getDirectionSymbol(delta)}`,
+    symbol.name,
+    `${format(symbol.close)}${getDirectionSymbol(symbol.change)}`,
   ]
     .map(formatStringForDiscordTitles)
     .filter(Boolean)
@@ -50,9 +47,12 @@ export function createChannelName(
 }
 
 export function createSymbolReportEmbed(symbol: Symbol) {
-  const fixedChange = symbol.change.toFixed(2);
+  const { format } = new Intl.NumberFormat('en-US');
+
+  const fixedClose = format(symbol.close);
+  const fixedChange = format(symbol.change);
   const directionSymbol = getDirectionSymbol(symbol.change);
-  const closeText = `$${symbol.close} (${fixedChange}) ${directionSymbol}`;
+  const closeText = `$${fixedClose} (${fixedChange}) ${directionSymbol}`;
 
   return new EmbedBuilder()
     .setColor(Colors.Green)
@@ -64,7 +64,7 @@ export function createSymbolReportEmbed(symbol: Symbol) {
     .setFields(
       {
         name: 'Open',
-        value: `$${symbol.open.toFixed(2)}`,
+        value: `$${format(symbol.open)}`,
         inline: true,
       },
       {
@@ -74,12 +74,12 @@ export function createSymbolReportEmbed(symbol: Symbol) {
       },
       {
         name: 'Low',
-        value: `$${symbol.low.toFixed(2)}`,
+        value: `$${format(symbol.low)}`,
         inline: true,
       },
       {
         name: 'High',
-        value: `$${symbol.high.toFixed(2)}`,
+        value: `$${format(symbol.high)}`,
         inline: true,
       }
     );

@@ -29,6 +29,7 @@ model Symbol {
   name        String
   description String
   logo        String
+  currency    String
   open        Float
   close       Float
   high        Float

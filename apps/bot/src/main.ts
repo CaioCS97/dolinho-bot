@@ -19,7 +19,7 @@ import { Slash } from '@dolinho/slash';
 import { Discord } from '@dolinho/utils';
 import * as TradingView from '@dolinho/trading-view';
 
-import { Channel, PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 /**
  * Assertions
@@ -222,7 +222,17 @@ slash.command(
       // This checks if the symbol exists or not
       assert(respone.statusCode === 200, AddCommandErrors.SymbolDoesNotExist);
 
-      const data = await respone.body.json();
+      const {
+        open,
+        close,
+        change,
+        high,
+        low,
+        name,
+        description,
+        logoid,
+        currency,
+      } = await respone.body.json();
 
       // Creates or update the symbol in the DB
       const symbol = await prisma.symbol.upsert({
@@ -230,22 +240,23 @@ slash.command(
           id: target,
         },
         update: {
-          open: data.open,
-          close: data.close,
-          change: data.change,
-          high: data.high,
-          low: data.low,
+          open,
+          close,
+          change,
+          high,
+          low,
         },
         create: {
           id: target,
-          name: data.name,
-          description: data.description,
-          logo: data.logoid,
-          open: data.open,
-          close: data.close,
-          high: data.high,
-          low: data.low,
-          change: data.change,
+          name,
+          description,
+          logo: logoid,
+          open,
+          close,
+          high,
+          low,
+          change,
+          currency,
         },
       });
 
@@ -272,12 +283,7 @@ slash.command(
       }
 
       const channel = await interaction.guild.channels.create({
-        name: Discord.createChannelName(
-          symbol.name,
-          symbol.close,
-          symbol.change,
-          2
-        ),
+        name: Discord.createChannelName(symbol),
         parent: guild.category_channel_id,
       });
 
@@ -329,6 +335,7 @@ slash.command(
                   'O símbolo fornecido já está sendo monitorado nesta Guilda. Por favor, escolha um símbolo diferente para adicionar.'
                 ),
               ],
+              flags: MessageFlags.Ephemeral,
             });
             break;
 
@@ -352,14 +359,6 @@ slash.command(
 /**
  * CRON
  */
-cron.schedule('0 0 9 * * 1-5', async () => {
-  try {
-    console.log('foo');
-  } catch (error) {
-    console.error(error);
-  }
-});
-
 // 10 to 17h because 9 and 18 are already scheduled with the cron above and bellow
 cron.schedule('0 0 10-17 * * 1-5', async () => {
   try {
@@ -378,10 +377,64 @@ cron.schedule('0 0 18 * * 1-5', async () => {
   }
 });
 
+// every 5 minutes, update all symbols
+cron.schedule('*/5 * * * 1-5', async () => {
+  const label = 'updating symbols!';
+  console.time(label);
+  try {
+    const result = await prisma.$transaction(async () => {
+      const actions = [];
+
+      const symbols = await prisma.symbol.findMany();
+
+      for (const symbol of symbols) {
+        console.log(`Updating symbol ${symbol.id}`);
+
+        const response = await TradingView.symbol(symbol.id);
+
+        const { open, close, change, high, low, currency } =
+          await response.body.json();
+
+        actions.push(
+          prisma.symbol.update({
+            where: {
+              id: symbol.id,
+            },
+            data: {
+              open,
+              close,
+              change,
+              high,
+              low,
+              currency,
+            },
+          })
+        );
+      }
+
+      return actions;
+    });
+    console.log(result);
+  } catch (error) {
+    console.log(error);
+  }
+  console.timeEnd(label);
+});
+
 // every 30 minutes, update all channel names
 cron.schedule('*/15 * * * 1-5', async () => {
   try {
-    console.log('should update the channels');
+    const channels = await prisma.channel.findMany({
+      include: {
+        symbol: true,
+      },
+    });
+
+    for (const { id, symbol } of channels) {
+      await api.channels.edit(id, {
+        name: Discord.createChannelName(symbol),
+      });
+    }
   } catch (error) {
     console.log(error);
   }
