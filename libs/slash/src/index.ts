@@ -17,7 +17,7 @@ import {
 
 import { match } from 'path-to-regexp';
 
-type InteractionHandler = (
+type SlashCommandHandler = (
   interaction:
     | Interaction
     | CommandInteraction
@@ -38,9 +38,9 @@ type SlashCommandInitialization = (
 
 export class Slash {
   private readonly commands = new Set<
-    [SlashCommandInitialization, InteractionHandler]
+    [SlashCommandInitialization, SlashCommandHandler]
   >();
-  private readonly handlers = new Map<string, InteractionHandler>();
+  private readonly handlers = new Map<string, SlashCommandHandler>();
 
   constructor(readonly client: Client) {
     assert(
@@ -81,12 +81,12 @@ export class Slash {
 
   public command(
     command: SlashCommandInitialization,
-    handler: InteractionHandler
+    handler: SlashCommandHandler
   ) {
     this.commands.add([command, handler]);
   }
 
-  public handler(path: string, handler: InteractionHandler) {
+  public handler(path: string, handler: SlashCommandHandler) {
     this.handlers.set(path, handler);
   }
 

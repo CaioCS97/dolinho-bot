@@ -428,6 +428,7 @@ cron.schedule('*/15 * * * 1-5', async () => {
 
       await api.channels.edit(id, {
         name: Discord.createChannelName(symbol),
+        topic: `${symbol.name} - ${symbol.description}`,
       });
     }
   } catch (error) {
