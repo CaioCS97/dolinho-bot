@@ -51,7 +51,7 @@ const client = new Client({
   },
 });
 
-const slash = new Slasher(client);
+const slasher = new Slasher(client);
 
 const prisma = new PrismaClient();
 
@@ -132,22 +132,23 @@ client.on(Events.GuildAvailable, async (guild): Promise<void> => {
     },
   });
 
-  // Should create the channel if the channel was deleted when the bot is offline
-  if (!(await Discord.discordChannelExist(api, instance.category_channel_id))) {
-    const category = await api.guilds.createChannel(instance.id, {
-      name: 'Dolinho',
-      type: ChannelType.GuildCategory,
-    });
+  // Should not create the channel if the channel already exists
+  if (await Discord.discordChannelExist(api, instance.category_channel_id))
+    return;
 
-    await prisma.guild.update({
-      where: {
-        id: instance.id,
-      },
-      data: {
-        category_channel_id: category.id,
-      },
-    });
-  }
+  const category = await api.guilds.createChannel(instance.id, {
+    name: 'Dolinho',
+    type: ChannelType.GuildCategory,
+  });
+
+  await prisma.guild.update({
+    where: {
+      id: instance.id,
+    },
+    data: {
+      category_channel_id: category.id,
+    },
+  });
 });
 
 // TODO: Remove the deleted channel from the database if the user delete it;
@@ -178,7 +179,7 @@ enum CommandErrors {
   GuildAlreadyObserveSymbol = 'guild_already_observe_symbol',
 }
 
-slash.command(
+slasher.command(
   async () =>
     new SlashCommandBuilder()
       .setName('add')
@@ -301,7 +302,7 @@ slash.command(
       });
 
       // This ensures the command `/current` have a list of updated symbols;
-      await slash.resetCommandOnGuild('/view', interaction.guild);
+      await slasher.resetCommandOnGuild('/view', interaction.guild);
     } catch (error) {
       if (error instanceof AssertionError && interaction.isRepliable()) {
         switch (error.message) {
@@ -346,7 +347,7 @@ slash.command(
   }
 );
 
-slash.command(
+slasher.command(
   async (guild) => {
     const channels = await prisma.channel.findMany({
       where: {
