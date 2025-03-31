@@ -153,6 +153,12 @@ client.on(Events.GuildAvailable, async (guild): Promise<void> => {
 // TODO: Remove the deleted channel from the database if the user delete it;
 client.on(Events.ChannelDelete, async (channel) => {
   console.log(`channel deleted: ${channel.id}`);
+
+  await prisma.channel.delete({
+    where: {
+      id: channel.id,
+    },
+  });
 });
 
 // TODO: If a channel that we owns is updated for watever reason, check which kind of update was made and revert it back;

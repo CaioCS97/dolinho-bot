@@ -10,12 +10,6 @@
       "path": "./libs/slash"
     },
     {
-      "path": "./libs/types"
-    },
-    {
-      "path": "./libs/market"
-    },
-    {
       "path": "./libs/utils"
     },
     {
