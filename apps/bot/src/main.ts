@@ -382,7 +382,7 @@ cron.schedule('*/5 * * * 1-5', async () => {
   const label = 'updating symbols!';
   console.time(label);
   try {
-    const result = await prisma.$transaction(async () => {
+    await prisma.$transaction(async () => {
       const actions = [];
 
       const symbols = await prisma.symbol.findMany();
@@ -414,7 +414,6 @@ cron.schedule('*/5 * * * 1-5', async () => {
 
       return actions;
     });
-    console.log(result);
   } catch (error) {
     console.log(error);
   }
