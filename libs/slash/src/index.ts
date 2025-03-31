@@ -45,7 +45,7 @@ export class Slash {
   constructor(readonly client: Client) {
     assert(
       client.options.intents.has(GatewayIntentBits.Guilds),
-      'GatewayIntentBits.Guilds intent is required so Slash library can manage commands in the Guild'
+      '`GatewayIntentBits.Guilds` intent is required so Slash library can manage commands in the Guild'
     );
 
     client.on(
@@ -106,7 +106,7 @@ export class Slash {
     }
   };
 
-  private initializeCommandsOnGuild = async (guild: Guild) => {
+  public initializeCommandsOnGuild = async (guild: Guild) => {
     try {
       await guild.commands.set([]);
 
@@ -125,4 +125,9 @@ export class Slash {
       console.error(error);
     }
   };
+
+  public resetCommandOnGuild(command: string, guild: Guild) {
+    // Criar uma maneira de guardar os comandos registrados em uma guilda
+    // Achar o comando em uma guilda, apontar para o index de comandos
+  }
 }

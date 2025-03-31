@@ -17,8 +17,13 @@ export const discordChannelExist = async (
   return true;
 };
 
+// https://coolsymbol.com/
 export function formatStringForDiscordTitles(str: string) {
-  return str.replaceAll('.', '․').replaceAll(',', 'ˏ');
+  return str
+    .replaceAll('.', '․')
+    .replaceAll(',', 'ˏ')
+    .replaceAll('(', '（')
+    .replaceAll(')', '）');
 }
 
 export function getDirectionSymbol(value: number | null) {
@@ -37,9 +42,11 @@ export function getDirectionSymbol(value: number | null) {
 export function createChannelName(symbol: Symbol) {
   const { format } = new Intl.NumberFormat('en-US');
 
+  const directionSymbol = getDirectionSymbol(symbol.change);
+
   return [
     symbol.name,
-    `${format(symbol.close)}${getDirectionSymbol(symbol.change)}`,
+    `${format(symbol.close)}${directionSymbol}(${format(symbol.change)})`,
   ]
     .map(formatStringForDiscordTitles)
     .filter(Boolean)
@@ -52,7 +59,7 @@ export function createSymbolReportEmbed(symbol: Symbol) {
   const fixedClose = format(symbol.close);
   const fixedChange = format(symbol.change);
   const directionSymbol = getDirectionSymbol(symbol.change);
-  const closeText = `$${fixedClose} (${fixedChange}) ${directionSymbol}`;
+  const closeText = `$${fixedClose}${directionSymbol}(${fixedChange})`;
 
   return new EmbedBuilder()
     .setColor(Colors.Green)
@@ -73,13 +80,13 @@ export function createSymbolReportEmbed(symbol: Symbol) {
         inline: true,
       },
       {
-        name: 'Low',
-        value: `$${format(symbol.low)}`,
+        name: 'High',
+        value: `$${format(symbol.high)}`,
         inline: true,
       },
       {
-        name: 'High',
-        value: `$${format(symbol.high)}`,
+        name: 'Low',
+        value: `$${format(symbol.low)}`,
         inline: true,
       }
     );

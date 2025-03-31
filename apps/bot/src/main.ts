@@ -382,38 +382,30 @@ cron.schedule('*/5 * * * 1-5', async () => {
   const label = 'updating symbols!';
   console.time(label);
   try {
-    await prisma.$transaction(async () => {
-      const actions = [];
+    const symbols = await prisma.symbol.findMany();
 
-      const symbols = await prisma.symbol.findMany();
+    for (const symbol of symbols) {
+      const response = await TradingView.symbol(symbol.id);
 
-      for (const symbol of symbols) {
-        console.log(`Updating symbol ${symbol.id}`);
+      const { open, close, change, high, low, currency } =
+        await response.body.json();
 
-        const response = await TradingView.symbol(symbol.id);
+      console.log(`Updating symbol ${symbol.id} ${close}`);
 
-        const { open, close, change, high, low, currency } =
-          await response.body.json();
-
-        actions.push(
-          prisma.symbol.update({
-            where: {
-              id: symbol.id,
-            },
-            data: {
-              open,
-              close,
-              change,
-              high,
-              low,
-              currency,
-            },
-          })
-        );
-      }
-
-      return actions;
-    });
+      await prisma.symbol.update({
+        where: {
+          id: symbol.id,
+        },
+        data: {
+          open,
+          close,
+          change,
+          high,
+          low,
+          currency,
+        },
+      });
+    }
   } catch (error) {
     console.log(error);
   }
@@ -430,6 +422,10 @@ cron.schedule('*/15 * * * 1-5', async () => {
     });
 
     for (const { id, symbol } of channels) {
+      console.log(
+        `Updating channel ${id} ${symbol.id} ${symbol.name} ${symbol.close}`
+      );
+
       await api.channels.edit(id, {
         name: Discord.createChannelName(symbol),
       });
