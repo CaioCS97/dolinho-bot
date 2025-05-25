@@ -17,7 +17,9 @@ import { API } from '@discordjs/core';
 
 import { Slasher } from '@dolinho/slash';
 import { Discord } from '@dolinho/utils';
+
 import * as TradingView from '@dolinho/trading-view';
+import * as RemessaOnline from '@dolinho/remessa-online';
 
 import { PrismaClient } from '@prisma/client';
 
@@ -439,26 +441,136 @@ slasher.command(
   }
 );
 
+// /simulate provider:remessa-online from:usd to:brl operation:send/recieve ammout:6500
+
+slasher.command(
+  async () =>
+    new SlashCommandBuilder()
+      .setName('simulate')
+      .setDescription(
+        'Simulate an transaction from the specified provider, it will use the current provider exchange rate.'
+      )
+      .addStringOption((option) =>
+        option
+          .setName('provider')
+          .setDescription('The provider used to simulate the operation')
+          .addChoices(
+            { name: 'Remessa Online', value: 'remessa-online' }
+            // Add other providers here as needed, e.g.:
+            // { name: 'Wise', value: 'wise' }
+          )
+          .setRequired(true)
+      )
+      .addStringOption((option) =>
+        option
+          .setName('from')
+          .setDescription('ISO code for the currency')
+          .addChoices(
+            { name: 'USD', value: 'USD' },
+            { name: 'BRL', value: 'BRL' },
+            { name: 'EUR', value: 'EUR' }
+          )
+          .setRequired(true)
+      )
+      .addStringOption((option) =>
+        option
+          .setName('to')
+          .setDescription('ISO code for the currency')
+          .addChoices(
+            { name: 'USD', value: 'USD' },
+            { name: 'BRL', value: 'BRL' },
+            { name: 'EUR', value: 'EUR' }
+          )
+          .setRequired(true)
+      )
+      .addStringOption((option) =>
+        option
+          .setName('ammount')
+          .setDescription(
+            'The floating ammount of the currency you want to simulate'
+          )
+          .setRequired(true)
+      ),
+  async (interaction) => {
+    try {
+      assert(interaction.guild, CommandErrors.GuildNotDefined);
+      assert(interaction.isRepliable(), CommandErrors.MessageNotRepliable);
+      assert(
+        interaction.isChatInputCommand(),
+        CommandErrors.NotChatInputCommand
+      );
+
+      // Target symbol
+      const [provider, from, to, ammount] = Discord.ensureInteractionProperties(
+        interaction,
+        ['provider', 'from', 'to', 'ammount']
+      );
+
+      const simulators: Record<
+        string,
+        (from: string, to: string, ammount: string) => Promise<string>
+      > = {
+        'remessa-online': RemessaOnline.simulate,
+      };
+
+      const result = await simulators[provider](from, to, ammount);
+
+      await interaction.reply({
+        content: result,
+        flags: [MessageFlags.Ephemeral],
+      });
+    } catch (error) {
+      if (error instanceof AssertionError && interaction.isRepliable()) {
+        switch (error.message) {
+          case CommandErrors.SymbolDoesNotExist:
+            await interaction.reply({
+              embeds: [
+                Discord.createErrorEmbed(
+                  'Símbolo não encontrado ou não suportado!',
+                  'O símbolo fornecido não foi encontrado ou não é suportado pelo Trading View. Verifique se o símbolo está correto e tente novamente.'
+                ),
+              ],
+              flags: MessageFlags.Ephemeral,
+            });
+            break;
+
+          default:
+            await interaction.reply({
+              embeds: [
+                Discord.createErrorEmbed(
+                  'Opa... Parece que alguma coisa aconteceu.',
+                  'Não conseguimos verificar os valores do seu simbolo... tente novamente mais tarde.'
+                ),
+              ],
+              flags: MessageFlags.Ephemeral,
+            });
+            break;
+        }
+      }
+    }
+  }
+);
+
 /**
  * CRON
  */
 // 10 to 17h because 9 and 18 are already scheduled with the cron above and bellow
-cron.schedule('0 0 10-17 * * 1-5', async () => {
-  try {
-    console.log('foo');
-  } catch (error) {
-    console.error(error);
-  }
-});
+// cron.schedule('0 0 10-17 * * 1-5', async () => {
+//   try {
+//     console.log('foo');
+//   } catch (error) {
+//     console.error(error);
+//   }
+// });
 
 // Closing the market
-cron.schedule('0 0 18 * * 1-5', async () => {
-  try {
-    console.log('foo');
-  } catch (error) {
-    console.error(error);
-  }
-});
+// cron.schedule('0 0 18 * * 1-5', async () => {
+//   try {
+//     console.log('foo');
+//   } catch (error) {
+//     console.error(error);
+//   }
+// });
 
 // every 30 minutes, update all channel names
 cron.schedule('*/15 * * * 1-5', async () => {

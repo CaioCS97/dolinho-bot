@@ -41,11 +41,13 @@ interface SlashCommandStoreEntry {
   handler: SlashCommandHandler;
 }
 
+// TODO: criar os handlers que forem necessarios ex: handleGuildCreateEvent, handleGuildAvailableEvent, handleInteractionEvent
+// TODO: registrar comandos globais;
 export class Slasher {
   private readonly store: Array<SlashCommandStoreEntry> = [];
 
   /**
-   * Saves the path `/foo` and maps to the initializer and handler to the given path
+   * Saves the path `/<path>` and maps to the initializer and handler to the given path
    */
   private readonly paths = new Map<string, SlashCommandStoreEntry>();
 

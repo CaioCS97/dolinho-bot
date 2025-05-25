@@ -4,6 +4,9 @@
   "include": [],
   "references": [
     {
+      "path": "../../libs/remessa-online"
+    },
+    {
       "path": "../../libs/tradig-view"
     },
     {

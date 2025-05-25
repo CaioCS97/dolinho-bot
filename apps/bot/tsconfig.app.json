@@ -19,6 +19,9 @@
   ],
   "references": [
     {
+      "path": "../../libs/remessa-online/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/tradig-view/tsconfig.lib.json"
     },
     {
