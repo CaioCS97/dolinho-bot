@@ -1,6 +1,7 @@
 import { API } from '@discordjs/core';
-import { Colors, EmbedBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, Colors, EmbedBuilder } from 'discord.js';
 import { Symbol } from '@prisma/client';
+import assert from 'assert';
 
 export const discordChannelExist = async (
   api: API,
@@ -117,4 +118,19 @@ export function createErrorEmbed(title: string, description: string) {
     .setColor(Colors.Red)
     .setTitle(title)
     .setDescription(description);
+}
+
+export function ensureInteractionProperties(
+  interaction: ChatInputCommandInteraction,
+  properties: Array<string>
+): Array<string> {
+  return properties.reduce((results, property) => {
+    const data = interaction.options
+      .get(property, true)
+      .value?.toString() as string;
+
+    assert(Boolean(data), `Missing property ${property} in the interaction`);
+
+    return [...results, data];
+  }, [] as Array<string>);
 }

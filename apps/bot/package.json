@@ -5,7 +5,8 @@
   "dependencies": {
     "@dolinho/slash": "*",
     "@dolinho/utils": "*",
-    "@dolinho/trading-view": "*"
+    "@dolinho/trading-view": "*",
+    "@dolinho/remessa-online": "*"
   },
   "nx": {
     "name": "bot",
