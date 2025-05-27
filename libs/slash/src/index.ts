@@ -17,39 +17,42 @@ import {
 
 import { match } from 'path-to-regexp';
 
-type SlashCommandInitializer = (
+export type SlasherCommandInteraction =
+  | Interaction
+  | CommandInteraction
+  | MessageComponentInteraction
+  | ModalSubmitInteraction;
+
+export type SlasherCommandInitializer = (
   guild: Guild
 ) => Promise<
   | Omit<SlashCommandBuilder, 'addSubcommandGroup' | 'addSubcommand'>
+  | SlashCommandOptionsOnlyBuilder
   | SlashCommandSubcommandsOnlyBuilder
   | SlashCommandOptionsOnlyBuilder
   | SlashCommandBuilder
 >;
 
-type SlashCommandHandler = (
-  interaction:
-    | Interaction
-    | CommandInteraction
-    | MessageComponentInteraction
-    | ModalSubmitInteraction,
+export type SlasherCommandHandler = (
+  interaction: SlasherCommandInteraction,
   params: Partial<Record<string, string | string[]>> | null,
   error?: Error | undefined | unknown
 ) => Promise<unknown>;
 
-interface SlashCommandStoreEntry {
-  initializer: SlashCommandInitializer | null;
-  handler: SlashCommandHandler;
+export interface SlasherCommandSetup {
+  initializer: SlasherCommandInitializer | null;
+  handler: SlasherCommandHandler;
 }
 
 // TODO: criar os handlers que forem necessarios ex: handleGuildCreateEvent, handleGuildAvailableEvent, handleInteractionEvent
 // TODO: registrar comandos globais;
 export class Slasher {
-  private readonly store: Array<SlashCommandStoreEntry> = [];
+  private readonly store: Array<SlasherCommandSetup> = [];
 
   /**
    * Saves the path `/<path>` and maps to the initializer and handler to the given path
    */
-  private readonly paths = new Map<string, SlashCommandStoreEntry>();
+  private readonly paths = new Map<string, SlasherCommandSetup>();
 
   constructor(readonly client: Client) {
     assert(
@@ -86,62 +89,19 @@ export class Slasher {
   }
 
   /**
-   * Registers a new slash command by providing its initializer and handler.
+   * Stores the setup configuration for a slash command.
+   * This method adds the provided `setup` object to an internal list,
+   * effectively registering the command within the system for later use,
+   * such as deployment to Discord or handling interactions.
    *
-   * @param initializer - An object or function that defines the structure and metadata
-   * of the slash command, such as its name, description, and options.
-   * @param handler - A function that handles the execution of the slash command
-   * when it is invoked by a user.
-   *
-   * @example
-   * // Registering a simple slash command
-   * slasher.command(
-   *   async (guild) => {
-   *     return new SlashCommandBuilder()
-   *       .setName('ping')
-   *       .setDescription('Replies with Pong!');
-   *   },
-   *   async (interaction) => {
-   *     if (interaction.isCommand()) {
-   *       await interaction.reply('Pong!');
-   *     }
-   *   }
-   * );
-   *
-   * @example
-   * // Registering a slash command with options
-   * slasher.command(
-   *   async (guild) => {
-   *     return new SlashCommandBuilder()
-   *       .setName('echo')
-   *       .setDescription('Replies with your input')
-   *       .addStringOption(option =>
-   *         option.setName('message')
-   *           .setDescription('The message to echo')
-   *           .setRequired(true)
-   *       );
-   *   },
-   *   async (interaction) => {
-   *     if (interaction.isCommand()) {
-   *       const message = interaction.options.getString('message');
-   *       await interaction.reply(`You said: ${message}`);
-   *     }
-   *   }
-   * );
+   * @param setup - The {@link SlasherCommandSetup} object containing all
+   *                necessary information to define and handle the slash command,
+   *                including its name, description, options, and execution logic.
    */
-  public command(
-    initializer: SlashCommandInitializer,
-    handler: SlashCommandHandler
-  ) {
-    this.store.push({ initializer, handler });
+  public command(setup: SlasherCommandSetup) {
+    this.store.push(setup);
   }
 
-  /**
-   * Registers a handler for a specific slash command path.
-   *
-   * @param path - The path of the slash command. This should be a string representing the command's endpoint.
-   * @param handler - The function that will handle the slash command. It must conform to the `SlashCommandHandler` type.
-   */
   /**
    * Registers a handler for a specific command path.
    *
@@ -164,7 +124,7 @@ export class Slasher {
    * such as when a user interacts with a button or other UI element, and the
    * custom ID corresponds to a specific path.
    */
-  public handler(path: string, handler: SlashCommandHandler) {
+  public handler(path: string, handler: SlasherCommandHandler) {
     this.paths.set(`/${path}`, { initializer: null, handler });
   }
 
