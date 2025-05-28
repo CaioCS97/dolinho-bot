@@ -1,12 +1,20 @@
-import { SlasherCommandInteraction } from '@dolinho/slash';
-import { MessageFlags, SlashCommandBuilder } from 'discord.js';
-import { CommandErrors } from '../../types';
 import assert, { AssertionError } from 'assert';
-import * as TradingView from '@dolinho/trading-view';
-import { Discord } from '@dolinho/utils';
+import {
+  MessageFlags,
+  PermissionFlagsBits,
+  SlashCommandBuilder,
+} from 'discord.js';
 
+import { CommandErrors } from '../../types';
+
+import { api } from '../../instances/api';
 import prisma from '../../instances/prisma';
 import slasher from '../../instances/slasher';
+
+import { Discord } from '@dolinho/utils';
+import { SlasherCommandInteraction } from '@dolinho/slash';
+
+import * as TradingView from '@dolinho/trading-view';
 
 export const initializer = async () =>
   new SlashCommandBuilder()
@@ -17,7 +25,8 @@ export const initializer = async () =>
         .setName('symbol')
         .setDescription('simbolo do Trading View a ser monitorado na guilda')
         .setRequired(true)
-    );
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 export const handler = async (interaction: SlasherCommandInteraction) => {
   try {
@@ -96,26 +105,7 @@ export const handler = async (interaction: SlasherCommandInteraction) => {
       );
     }
 
-    const channel = await interaction.guild.channels.create({
-      name: Discord.createChannelName(symbol),
-      parent: guild.category_channel_id,
-    });
-
-    await prisma.channel.create({
-      data: {
-        id: channel.id,
-        guild: {
-          connect: {
-            id: interaction.guild.id,
-          },
-        },
-        symbol: {
-          connect: {
-            id: symbol.id,
-          },
-        },
-      },
-    });
+    await Discord.createRequiredSymbolChannels(api, prisma, guild, symbol);
 
     await interaction.reply({
       embeds: [

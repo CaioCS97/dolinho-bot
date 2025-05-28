@@ -8,13 +8,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ChannelTopic {
+  Category
+  Discussion
+  News
+  None
+}
+
 model Guild {
-  id                  String    @id @unique
-  name                String
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  category_channel_id String?   @unique
-  channels            Channel[]
+  id        String    @id @unique
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  channels  Channel[]
 }
 
 model Symbol {
@@ -32,9 +38,10 @@ model Symbol {
 }
 
 model Channel {
-  id       String @id @unique
+  id       String       @id @unique
+  topic    ChannelTopic @default(None)
   guildId  String
   symbolId String
-  guild    Guild  @relation(fields: [guildId], references: [id])
-  symbol   Symbol @relation(fields: [symbolId], references: [id])
+  guild    Guild        @relation(fields: [guildId], references: [id])
+  symbol   Symbol       @relation(fields: [symbolId], references: [id])
 }

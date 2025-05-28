@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 
-import { ChannelType, Events } from 'discord.js';
+import { Events } from 'discord.js';
 
 import { Discord } from '@dolinho/utils';
 
@@ -15,6 +15,7 @@ import * as SimulateCommand from './commands/exchanges/simulate';
 
 import * as TradingViewAddSymbolCommand from './commands/trading-view/add-symbol';
 import * as TradingViewViewSymbolCommand from './commands/trading-view/view-symbol';
+import { ChannelTopic } from '@prisma/client';
 
 /**
  * Client
@@ -34,16 +35,10 @@ client.on(Events.Error, (error) => {
 client.on(Events.GuildCreate, async (guild): Promise<void> => {
   console.log(`${guild.name} installed Dolinho! :)`);
 
-  const category = await api.guilds.createChannel(guild.id, {
-    name: 'Dolinho',
-    type: ChannelType.GuildCategory,
-  });
-
   await prisma.guild.create({
     data: {
       id: guild.id,
       name: guild.name,
-      category_channel_id: category.id,
     },
   });
 });
@@ -75,44 +70,55 @@ client.on(Events.GuildDelete, async (guild): Promise<void> => {
   });
 });
 
-client.on(Events.GuildAvailable, async (guild): Promise<void> => {
-  console.log(`Dolinho is available in ${guild.name} guild!`);
+client.on(Events.GuildAvailable, async ({ id, name }): Promise<void> => {
+  console.log(`Dolinho is available in ${name} guild!`);
 
-  const instance = await prisma.guild.upsert({
+  const guild = await prisma.guild.upsert({
     where: {
-      id: guild.id,
+      id: id,
     },
     create: {
-      id: guild.id,
-      name: guild.name,
-      category_channel_id: null,
+      id: id,
+      name: name,
     },
     update: {
-      id: guild.id,
-      name: guild.name,
+      id: id,
+      name: name,
+    },
+    include: {
+      channels: {
+        include: {
+          symbol: true,
+        },
+      },
     },
   });
 
-  // Should not create the channel if the channel already exists
-  if (await Discord.discordChannelExist(api, instance.category_channel_id))
-    return;
+  try {
+    // This code recreate legacy channels and delete old ones.
+    // It should be removed in the future
+    for (const channel of guild.channels) {
+      const { topic, symbol } = channel;
 
-  const category = await api.guilds.createChannel(instance.id, {
-    name: 'Dolinho',
-    type: ChannelType.GuildCategory,
-  });
+      if (topic === ChannelTopic.None) {
+        await Discord.createRequiredSymbolChannels(api, prisma, guild, symbol);
+        await Discord.deleteChannel(api, prisma, guild, channel);
+      }
+    }
 
-  await prisma.guild.update({
-    where: {
-      id: instance.id,
-    },
-    data: {
-      category_channel_id: category.id,
-    },
-  });
+    // This searches for the 'Dolinho' channel, it was used to contain all symbols channels
+    for (const channel of await api.guilds.getChannels(guild.id)) {
+      if (channel.name === 'Dolinho') {
+        await api.channels.delete(channel.id);
+      }
+    }
+  } catch {
+    console.log('could not delete channels');
+  }
 });
 
-// TODO: Remove the deleted channel from the database if the user delete it;
+// TODO: when a Category channel is delete, delete all the sub text channels.
+// TODO: when a text channel is deleted, create it back.
 client.on(Events.ChannelDelete, async (channel) => {
   console.log(`channel deleted: ${channel.id}`);
 
@@ -177,6 +183,9 @@ cron.schedule('*/15 * * * 1-5', async () => {
 
     // Update channels data
     const channels = await prisma.channel.findMany({
+      where: {
+        topic: ChannelTopic.Category,
+      },
       include: {
         symbol: true,
       },
@@ -189,7 +198,6 @@ cron.schedule('*/15 * * * 1-5', async () => {
 
       await api.channels.edit(id, {
         name: Discord.createChannelName(symbol),
-        topic: `${symbol.name} - ${symbol.description}`,
       });
     }
   } catch (error) {
