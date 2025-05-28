@@ -117,6 +117,8 @@ client.on(Events.GuildAvailable, async ({ id, name }): Promise<void> => {
   }
 });
 
+// TODO: when a Category channel is delete, delete all the sub text channels.
+// TODO: when a text channel is deleted, create it back.
 client.on(Events.ChannelDelete, async (channel) => {
   console.log(`channel deleted: ${channel.id}`);
 
@@ -181,6 +183,9 @@ cron.schedule('*/15 * * * 1-5', async () => {
 
     // Update channels data
     const channels = await prisma.channel.findMany({
+      where: {
+        topic: ChannelTopic.Category,
+      },
       include: {
         symbol: true,
       },
@@ -193,7 +198,6 @@ cron.schedule('*/15 * * * 1-5', async () => {
 
       await api.channels.edit(id, {
         name: Discord.createChannelName(symbol),
-        topic: `${symbol.name} - ${symbol.description}`,
       });
     }
   } catch (error) {
