@@ -97,28 +97,7 @@ export const handler = async (interaction: SlasherCommandInteraction) => {
       );
     }
 
-    const categoryChannel = await Discord.createSymbolCategoryChannel(
-      api,
-      prisma,
-      guild,
-      symbol
-    );
-
-    await Discord.createSymbolNewsTextChannel(
-      api,
-      prisma,
-      guild,
-      symbol,
-      categoryChannel
-    );
-
-    await Discord.createSymbolDiscussionTextChannel(
-      api,
-      prisma,
-      guild,
-      symbol,
-      categoryChannel
-    );
+    await Discord.createRequiredSymbolChannels(api, prisma, guild, symbol);
 
     await interaction.reply({
       embeds: [

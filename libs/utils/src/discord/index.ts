@@ -5,7 +5,13 @@ import {
   EmbedBuilder,
   PermissionsBitField,
 } from 'discord.js';
-import { ChannelTopic, Guild, PrismaClient, Symbol } from '@prisma/client';
+import {
+  Channel,
+  ChannelTopic,
+  Guild,
+  PrismaClient,
+  Symbol,
+} from '@prisma/client';
 import assert from 'assert';
 
 export const discordChannelExist = async (
@@ -243,4 +249,52 @@ export async function createSymbolDiscussionTextChannel(
   });
 
   return channel;
+}
+
+export async function createRequiredSymbolChannels(
+  api: API,
+  prisma: PrismaClient,
+  guild: Guild,
+  symbol: Symbol
+) {
+  const categoryChannel = await createSymbolCategoryChannel(
+    api,
+    prisma,
+    guild,
+    symbol
+  );
+
+  await createSymbolNewsTextChannel(
+    api,
+    prisma,
+    guild,
+    symbol,
+    categoryChannel
+  );
+
+  await createSymbolDiscussionTextChannel(
+    api,
+    prisma,
+    guild,
+    symbol,
+    categoryChannel
+  );
+}
+
+export async function deleteChannel(
+  api: API,
+  prisma: PrismaClient,
+  guild: Guild,
+  channel: Channel
+) {
+  // Delete the channel from Discord
+  // This action will also trigger the Events.ChannelDelete event listener,
+  // which should handle DB cleanup if this function's DB cleanup part fails or is delayed.
+  await api.channels.delete(channel.id);
+
+  await prisma.channel.delete({
+    where: {
+      id: channel.id,
+    },
+  });
 }

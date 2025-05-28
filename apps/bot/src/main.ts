@@ -15,6 +15,7 @@ import * as SimulateCommand from './commands/exchanges/simulate';
 
 import * as TradingViewAddSymbolCommand from './commands/trading-view/add-symbol';
 import * as TradingViewViewSymbolCommand from './commands/trading-view/view-symbol';
+import { ChannelTopic } from '@prisma/client';
 
 /**
  * Client
@@ -69,25 +70,53 @@ client.on(Events.GuildDelete, async (guild): Promise<void> => {
   });
 });
 
-client.on(Events.GuildAvailable, async (guild): Promise<void> => {
-  console.log(`Dolinho is available in ${guild.name} guild!`);
+client.on(Events.GuildAvailable, async ({ id, name }): Promise<void> => {
+  console.log(`Dolinho is available in ${name} guild!`);
 
-  await prisma.guild.upsert({
+  const guild = await prisma.guild.upsert({
     where: {
-      id: guild.id,
+      id: id,
     },
     create: {
-      id: guild.id,
-      name: guild.name,
+      id: id,
+      name: name,
     },
     update: {
-      id: guild.id,
-      name: guild.name,
+      id: id,
+      name: name,
+    },
+    include: {
+      channels: {
+        include: {
+          symbol: true,
+        },
+      },
     },
   });
+
+  try {
+    // This code recreate legacy channels and delete old ones.
+    // It should be removed in the future
+    for (const channel of guild.channels) {
+      const { topic, symbol } = channel;
+
+      if (topic === ChannelTopic.None) {
+        await Discord.createRequiredSymbolChannels(api, prisma, guild, symbol);
+        await Discord.deleteChannel(api, prisma, guild, channel);
+      }
+    }
+
+    // This searches for the 'Dolinho' channel, it was used to contain all symbols channels
+    for (const channel of await api.guilds.getChannels(guild.id)) {
+      if (channel.name === 'Dolinho') {
+        await api.channels.delete(channel.id);
+      }
+    }
+  } catch {
+    console.log('could not delete channels');
+  }
 });
 
-// TODO: Remove the deleted channel from the database if the user delete it;
 client.on(Events.ChannelDelete, async (channel) => {
   console.log(`channel deleted: ${channel.id}`);
 
