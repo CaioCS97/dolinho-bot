@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 
-import { ChannelType, Events } from 'discord.js';
+import { Events } from 'discord.js';
 
 import { Discord } from '@dolinho/utils';
 
@@ -34,16 +34,10 @@ client.on(Events.Error, (error) => {
 client.on(Events.GuildCreate, async (guild): Promise<void> => {
   console.log(`${guild.name} installed Dolinho! :)`);
 
-  const category = await api.guilds.createChannel(guild.id, {
-    name: 'Dolinho',
-    type: ChannelType.GuildCategory,
-  });
-
   await prisma.guild.create({
     data: {
       id: guild.id,
       name: guild.name,
-      category_channel_id: category.id,
     },
   });
 });
@@ -78,36 +72,17 @@ client.on(Events.GuildDelete, async (guild): Promise<void> => {
 client.on(Events.GuildAvailable, async (guild): Promise<void> => {
   console.log(`Dolinho is available in ${guild.name} guild!`);
 
-  const instance = await prisma.guild.upsert({
+  await prisma.guild.upsert({
     where: {
       id: guild.id,
     },
     create: {
       id: guild.id,
       name: guild.name,
-      category_channel_id: null,
     },
     update: {
       id: guild.id,
       name: guild.name,
-    },
-  });
-
-  // Should not create the channel if the channel already exists
-  if (await Discord.discordChannelExist(api, instance.category_channel_id))
-    return;
-
-  const category = await api.guilds.createChannel(instance.id, {
-    name: 'Dolinho',
-    type: ChannelType.GuildCategory,
-  });
-
-  await prisma.guild.update({
-    where: {
-      id: instance.id,
-    },
-    data: {
-      category_channel_id: category.id,
     },
   });
 });

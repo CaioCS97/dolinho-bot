@@ -7,6 +7,7 @@ import { Discord } from '@dolinho/utils';
 
 import prisma from '../../instances/prisma';
 import slasher from '../../instances/slasher';
+import { api } from '../../instances/api';
 
 export const initializer = async () =>
   new SlashCommandBuilder()
@@ -96,26 +97,28 @@ export const handler = async (interaction: SlasherCommandInteraction) => {
       );
     }
 
-    const channel = await interaction.guild.channels.create({
-      name: Discord.createChannelName(symbol),
-      parent: guild.category_channel_id,
-    });
+    const categoryChannel = await Discord.createSymbolCategoryChannel(
+      api,
+      prisma,
+      guild,
+      symbol
+    );
 
-    await prisma.channel.create({
-      data: {
-        id: channel.id,
-        guild: {
-          connect: {
-            id: interaction.guild.id,
-          },
-        },
-        symbol: {
-          connect: {
-            id: symbol.id,
-          },
-        },
-      },
-    });
+    await Discord.createSymbolNewsTextChannel(
+      api,
+      prisma,
+      guild,
+      symbol,
+      categoryChannel
+    );
+
+    await Discord.createSymbolDiscussionTextChannel(
+      api,
+      prisma,
+      guild,
+      symbol,
+      categoryChannel
+    );
 
     await interaction.reply({
       embeds: [
