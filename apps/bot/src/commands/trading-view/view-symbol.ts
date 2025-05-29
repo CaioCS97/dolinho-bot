@@ -9,6 +9,7 @@ import * as TradingView from '@dolinho/trading-view';
 import prisma from '../../instances/prisma';
 
 import { CommandErrors } from '../../types';
+import { ChannelTopic } from '@prisma/client';
 
 export const initializer = async (guild: Guild) => {
   const channels = await prisma.channel.findMany({
@@ -28,10 +29,12 @@ export const initializer = async (guild: Guild) => {
         .setName('symbol')
         .setDescription('The symbol used to return the data')
         .addChoices(
-          ...channels.map((channel) => ({
-            name: channel.symbol.name,
-            value: channel.symbol.id,
-          }))
+          ...channels
+            .filter((channel) => channel.topic === ChannelTopic.Category)
+            .map((channel) => ({
+              name: channel.symbol.name,
+              value: channel.symbol.id,
+            }))
         )
         .setRequired(true)
     );
