@@ -21,10 +21,14 @@ model Guild {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   channels  Channel[]
+  Member    Member[]
 }
 
 model Symbol {
-  id          String    @id @unique
+  id        String   @id @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   name        String
   description String
   logo        String
@@ -38,10 +42,26 @@ model Symbol {
 }
 
 model Channel {
-  id       String       @id @unique
+  id        String   @id @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   topic    ChannelTopic @default(None)
   guildId  String
   symbolId String
   guild    Guild        @relation(fields: [guildId], references: [id])
   symbol   Symbol       @relation(fields: [symbolId], references: [id])
+}
+
+model Member {
+  id        String   @id
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [id])
+
+  welcomeMessageSent Boolean @default(false)
 }

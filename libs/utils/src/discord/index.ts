@@ -14,30 +14,6 @@ import {
 } from '@prisma/client';
 import assert from 'assert';
 
-export const discordChannelExist = async (
-  api: API,
-  channelId: string | null
-) => {
-  if (!channelId) return false;
-
-  try {
-    await api.channels.get(channelId);
-  } catch {
-    return false;
-  }
-
-  return true;
-};
-
-// https://coolsymbol.com/
-export function formatStringForDiscordTitles(str: string) {
-  return str
-    .replaceAll('.', '․')
-    .replaceAll(',', 'ˏ')
-    .replaceAll('(', '（')
-    .replaceAll(')', '）');
-}
-
 export function getDirectionSymbol(value: number | null) {
   switch (true) {
     case value && value > 0:
