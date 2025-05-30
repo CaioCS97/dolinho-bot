@@ -29,6 +29,7 @@ export default async function handleGuildAvailableEvent({ id, name }: Guild) {
   });
 
   const members = await prisma.$transaction(
+    // TODO: we should improve this, servers may have more than 1000 users in the future. Maybe we should do this in chunks.
     (
       await api.guilds.getMembers(id, { limit: 1000 })
     )
