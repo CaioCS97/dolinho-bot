@@ -1,11 +1,11 @@
-const welcomeMessage = (userId: string, guildName: string) => `
-Hey <@${userId}>, nice to see you in ${guildName}!
+const welcomeMessage = (userId: string, guildName: string) => `\n
+Hey <@${userId}>, welcome to the **${guildName}** server!
 
-The Guild is using **Dolinho**, yeah, it's me. I'm a tool that helps in monitoring currencies conversion rates like **USD to BRL** and keeping track of exchange rates.
+I'm **Dolinho**, your friendly bot assistant. I'm here to help you monitor currency conversion rates, like **USD to BRL**, and keep track of exchange rates.
 
-**Here is a list of the available commands:**
-* \`/view\` - Helps checking the value of a symbol;
-* \`/simulate\` - Allows you to simulate the conversion rates for a give Exchange;
+**Here's what I can do for you:**
+* \`/view\` - Check the current value of a specific currency symbol.
+* \`/simulate\` - Simulate currency conversions for a given exchange.
 `;
 
 export default welcomeMessage;
