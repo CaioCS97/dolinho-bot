@@ -18,16 +18,16 @@ enum ChannelTopic {
 model Guild {
   id        String    @id @unique
   name      String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
   channels  Channel[]
   Member    Member[]
 }
 
 model Symbol {
-  id        String   @id @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String    @id @unique
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
 
   name        String
   description String
@@ -42,9 +42,9 @@ model Symbol {
 }
 
 model Channel {
-  id        String   @id @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String    @id @unique
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
 
   topic    ChannelTopic @default(None)
   guildId  String
@@ -54,9 +54,9 @@ model Channel {
 }
 
 model Member {
-  id        String   @id
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String    @id
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
 
   userId String
 
